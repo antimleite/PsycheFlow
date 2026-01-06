@@ -1,0 +1,5 @@
+{
+  "name": "Gestor PsycheFlow",
+  "description": "Uma plataforma minimalista e abrangente de gestão de pacientes para consultórios de psicologia, com agendamento, controle de pagamentos, monitoramento de presença e insights clínicos via IA.",
+  "requestFramePermissions": []
+}
