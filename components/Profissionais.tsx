@@ -225,11 +225,6 @@ const Profissionais: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900">{editingProf ? 'Editar Profissional' : 'Novo Profissional'}</h3>
               <div className="flex items-center gap-2">
-                {editingProf && isAdmin && (
-                  <button onClick={handleDelete} disabled={isSaving} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors disabled:opacity-50" title="Excluir profissional">
-                    <Trash2 size={20} />
-                  </button>
-                )}
                 <button onClick={() => setShowForm(false)} disabled={isSaving} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100 disabled:opacity-50"><X size={24} /></button>
               </div>
             </div>
