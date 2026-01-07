@@ -42,7 +42,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'scheduling', label: 'Agendamentos', icon: Calendar },
     { id: 'payments', label: 'Pagamentos', icon: CreditCard },
     { id: 'packages', label: 'Pacotes', icon: Package },
-    { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'reports', label: 'Rel. de atendimentos', icon: BarChart3 },
   ];
 
   if (currentUser?.role === UserRole.ADMIN) {
