@@ -117,21 +117,8 @@ const AppContent: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="relative z-10 space-y-8">
-              <div className="flex gap-4">
-                <div className="flex -space-x-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-10 h-10 rounded-full border-2 border-indigo-600 bg-indigo-400 flex items-center justify-center text-[10px] font-bold">
-                      {String.fromCharCode(64 + i)}
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm font-medium text-indigo-100">
-                  Junte-se a centenas de psicólogos <br/> que já evoluíram sua gestão.
-                </p>
-              </div>
-              {/* Seção removida conforme solicitado na imagem */}
-            </div>
+            {/* Espaçador para manter o layout flexível */}
+            <div className="relative z-10"></div>
           </div>
 
           <div className="p-8 md:p-20 flex flex-col justify-center bg-white">
