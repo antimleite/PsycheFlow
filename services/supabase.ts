@@ -13,7 +13,7 @@ const getEnvVar = (key: string): string => {
     return meta.env[key];
   }
   
-  // 2. Tenta o shim global (Runtime fallback definido no index.html)
+  // 2. Tenta o shim global (Runtime fallback definido no index.html ou injetado pelo Vite)
   const globalEnv = (window as any).process?.env;
   if (globalEnv && globalEnv[key]) {
     return globalEnv[key];
@@ -22,20 +22,24 @@ const getEnvVar = (key: string): string => {
   return '';
 };
 
-// Credenciais fornecidas pelo usuário
+// Credenciais atualizadas conforme solicitação
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://phfodgwnbsmmexextrts.supabase.co';
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Teste de conexão silencioso
+// Teste de conexão silencioso para depuração no console
 (async () => {
   try {
     const { error } = await supabase.from('profiles').select('id').limit(1);
     if (error) {
-      console.warn('Aviso de conexão Supabase:', error.message);
+      if (error.code === '42P01') {
+        console.warn('Conectado ao Supabase, mas a tabela "profiles" ainda não existe.');
+      } else {
+        console.warn('Aviso de conexão Supabase:', error.message);
+      }
     } else {
-      console.log('Conexão com Supabase estabelecida com sucesso.');
+      console.log('Conexão com Supabase (PsycheFlow) estabelecida com sucesso.');
     }
   } catch (e) {
     console.error('Falha crítica ao testar conexão Supabase:', e);

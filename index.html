@@ -43,8 +43,8 @@
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-      // Global shim para variáveis de ambiente. 
-      // Em produção (Vercel), o Vite substituirá estas strings se as chaves existirem no painel.
+      // Global shim para variáveis de ambiente.
+      // Em produção (Vercel), os valores abaixo servem apenas como último fallback local.
       window.process = { 
         env: { 
           NODE_ENV: 'production',
