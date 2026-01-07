@@ -22,7 +22,7 @@ interface AppContextType {
   setPreSelectedPatientId: (id: string | null) => void;
   login: (email: string, password?: string) => Promise<{ success: boolean, message?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean, message?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   addPatient: (patient: Omit<Patient, 'id' | 'profissionalId'>) => Promise<void>;
   updatePatient: (patient: Patient) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
@@ -225,18 +225,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logout = useCallback(async () => {
+    setLoading(true);
     try {
-      await supabase.auth.signOut();
+      // Tenta sair via API do Supabase
+      if (supabase && supabase.auth) {
+        await supabase.auth.signOut();
+      }
     } catch (e) {
-      console.error("Erro ao sair:", e);
+      console.error("Erro durante logout de rede:", e);
     } finally {
-      // Limpeza forçada do estado
+      // Limpeza manual forçada do localStorage para evitar auto-login imediato
+      // O Supabase utiliza o padrão: sb-{project-id}-auth-token
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase.auth.token') || key.includes('sb-'))) {
+          localStorage.removeItem(key);
+        }
+      }
+      
+      // Reset de estado local
       setCurrentUser(null);
       setAuthenticated(false);
       setActiveProfissional(null);
       setLoading(false);
-      // Força o retorno para a tela inicial limpa
-      window.location.href = '/';
+      
+      // Redirecionamento limpo para a raiz
+      window.location.replace('/');
     }
   }, []);
 
