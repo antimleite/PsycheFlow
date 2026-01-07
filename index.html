@@ -43,7 +43,8 @@
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-      // Global shim to prevent ReferenceError: process is not defined
+      // Global shim para variáveis de ambiente. 
+      // Em produção (Vercel), o Vite substituirá estas strings se as chaves existirem no painel.
       window.process = { 
         env: { 
           NODE_ENV: 'production',

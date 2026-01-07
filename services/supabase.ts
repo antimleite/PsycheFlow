@@ -2,34 +2,45 @@
 import { createClient } from '@supabase/supabase-js';
 import { User } from '../types';
 
-// Credenciais padrão de fallback caso as variáveis de ambiente falhem
-const DEFAULT_URL = 'https://phfodgwnbsmmexextrts.supabase.co';
-const DEFAULT_KEY = 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
-
-const getEnv = (key: string, fallback: string): string => {
-  try {
-    // Tenta ler de process.env (injetado via Vite ou via Shim no HTML)
-    const envSource = (typeof process !== 'undefined' && process.env) ? process.env : (window as any).process?.env;
-    const value = envSource ? (envSource as any)[key] : undefined;
-    
-    // Verifica se o valor é uma string válida e não um placeholder de erro ("undefined", "null", "")
-    if (value === undefined || value === null || value === 'undefined' || value === 'null' || value === '') {
-      return fallback;
-    }
-    return String(value).trim();
-  } catch (e) {
-    return fallback;
+/**
+ * Utilitário para obter variáveis de ambiente de forma resiliente.
+ * Prioriza o padrão do Vite (import.meta.env) usado pela Vercel.
+ */
+const getEnvVar = (key: string): string => {
+  // 1. Tenta o padrão Vite (Build time)
+  const meta = import.meta as any;
+  if (meta && meta.env && meta.env[key]) {
+    return meta.env[key];
   }
+  
+  // 2. Tenta o shim global (Runtime fallback definido no index.html)
+  const globalEnv = (window as any).process?.env;
+  if (globalEnv && globalEnv[key]) {
+    return globalEnv[key];
+  }
+
+  return '';
 };
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL', DEFAULT_URL);
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY', DEFAULT_KEY);
+// Credenciais fornecidas pelo usuário
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://phfodgwnbsmmexextrts.supabase.co';
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
 
-// Inicialização segura: Garante que a URL comece com http para não quebrar o construtor do Supabase
-const finalUrl = (supabaseUrl && supabaseUrl.startsWith('http')) ? supabaseUrl : DEFAULT_URL;
-const finalKey = (supabaseAnonKey && supabaseAnonKey.length > 10) ? supabaseAnonKey : DEFAULT_KEY;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const supabase = createClient(finalUrl, finalKey);
+// Teste de conexão silencioso
+(async () => {
+  try {
+    const { error } = await supabase.from('profiles').select('id').limit(1);
+    if (error) {
+      console.warn('Aviso de conexão Supabase:', error.message);
+    } else {
+      console.log('Conexão com Supabase estabelecida com sucesso.');
+    }
+  } catch (e) {
+    console.error('Falha crítica ao testar conexão Supabase:', e);
+  }
+})();
 
 // Helper para mapear nomes de colunas (snake_case) para o modelo de dados (camelCase)
 export const mapToCamelCase = (data: any) => {
