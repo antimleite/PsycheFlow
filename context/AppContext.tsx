@@ -106,7 +106,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             status: UserStatus.ACTIVE,
             professionalAccess: session.user.user_metadata?.professional_access || []
           };
-          console.log("Perfil não encontrado na tabela. Usando metadados do Auth.");
         }
 
         const formattedProfile: User = { 
@@ -135,7 +134,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const setupAuth = async () => {
       try {
         if (!supabase || !supabase.auth) {
-            console.error("Supabase client not initialized.");
             if (mounted) setLoading(false);
             return { unsubscribe: () => {} };
         }
@@ -199,7 +197,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setLoading(false);
         let message = error.message;
         if (message === 'Invalid login credentials') message = 'E-mail ou senha incorretos.';
-        if (message === 'Email not confirmed') message = 'E-mail não confirmado. Verifique sua caixa de entrada.';
         return { success: false, message };
       }
       if (data.session) await handleSession(data.session);
@@ -227,12 +224,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true };
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setActiveProfissional(null);
-    setAuthenticated(false);
-    setCurrentUser(null);
-  };
+  const logout = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Erro ao sair:", e);
+    } finally {
+      // Limpeza forçada do estado
+      setCurrentUser(null);
+      setAuthenticated(false);
+      setActiveProfissional(null);
+      setLoading(false);
+      // Força o retorno para a tela inicial limpa
+      window.location.href = '/';
+    }
+  }, []);
 
   const addPatient = async (patientData: Omit<Patient, 'id' | 'profissionalId'>) => {
     if (!activeProfissional) throw new Error("Sem profissional");

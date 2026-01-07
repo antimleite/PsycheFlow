@@ -7,7 +7,6 @@ const DEFAULT_URL = 'https://phfodgwnbsmmexextrts.supabase.co';
 const DEFAULT_KEY = 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
 
 // O Vite injeta variáveis em process.env via config. 
-// Usamos o operador OR para garantir que, se a env for string vazia ou undefined, usemos o DEFAULT.
 const supabaseUrl = (process.env.VITE_SUPABASE_URL || DEFAULT_URL).trim();
 const supabaseAnonKey = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_KEY).trim();
 

@@ -23,6 +23,7 @@ interface LayoutProps {
 
 const LogoSymbolSmall = () => (
   <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#f0f2f5" opacity="0.5" />
     <path d="M15 45 C15 15, 50 20, 50 45 C50 20, 85 15, 85 45 C85 70, 65 85, 50 85 C35 85, 15 70, 15 45 Z" fill="#A4A8D3" />
     <path d="M30 85 C30 95, 40 100, 50 100 C60 100, 70 95, 70 85 L30 85 Z" fill="#A4A8D3" opacity="0.8" />
     <rect x="46" y="28" width="8" height="58" rx="4" fill="#4B4E91" />
@@ -80,7 +81,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
         <div className="p-6 border-t border-gray-50">
           <button 
-            onClick={logout}
+            type="button"
+            onClick={() => logout()}
             className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-rose-500 rounded-2xl transition-all font-bold group"
           >
             <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -93,14 +95,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         <header className="top-nav h-20 bg-white border-b border-gray-50 flex items-center justify-between px-8 sticky top-0 z-10 print-hidden">
           <div className="flex items-center gap-4">
             <img 
-              // Fixed: renamed nome_completo to nomeCompleto
-              src={activeProfissional?.avatar || `https://ui-avatars.com/api/?name=${activeProfissional?.nomeCompleto}&background=random`}
-              // Fixed: renamed nome_completo to nomeCompleto
+              src={activeProfissional?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeProfissional?.nomeCompleto || '')}&background=random`}
               alt={activeProfissional?.nomeCompleto}
               className="w-10 h-10 rounded-full border-2 border-indigo-100"
             />
             <div>
-              {/* Fixed: renamed nome_completo to nomeCompleto */}
               <p className="text-sm font-bold text-gray-900">{activeProfissional?.nomeCompleto}</p>
               <p className="text-xs text-indigo-500 font-medium">{activeProfissional?.especialidade}</p>
             </div>
@@ -121,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               </div>
               <div className="relative">
                 <img 
-                  src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${currentUser?.name}&background=random`} 
+                  src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || '')}&background=random`} 
                   alt="Perfil" 
                   className="w-10 h-10 rounded-2xl border-2 border-white shadow-md"
                 />
