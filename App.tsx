@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import PatientRegistration from './components/PatientRegistration';
@@ -316,9 +317,12 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+      <SpeedInsights />
+    </>
   );
 };
 
