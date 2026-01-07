@@ -14,11 +14,12 @@ import {
   Activity,
   CalendarCheck,
   ClipboardList,
-  Search
+  Search,
+  FileDown
 } from 'lucide-react';
 
 const Reports: React.FC = () => {
-  const { visiblePatients, visibleSessions } = useApp();
+  const { visiblePatients, visibleSessions, activeProfissional } = useApp();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -45,6 +46,117 @@ const Reports: React.FC = () => {
         return b.time.localeCompare(a.time);
       });
   }, [selectedPatient, visibleSessions]);
+
+  const handleExportIndividualPDF = () => {
+    if (!selectedPatient) return;
+
+    const reportWindow = window.open('', '_blank');
+    if (!reportWindow) {
+      alert('Por favor, permita pop-ups para gerar o relatório.');
+      return;
+    }
+
+    const engagement = patientHistory.length > 0 
+      ? ((patientHistory.filter(s => s.status === AttendanceStatus.COMPLETED).length / patientHistory.length) * 100).toFixed(0) 
+      : 0;
+
+    const historyRows = patientHistory.map(s => `
+      <div style="margin-bottom: 20px; padding: 15px; border-left: 3px solid #4f46e5; background: #f8fafc; border-radius: 0 12px 12px 0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-weight: 700; font-size: 13px; color: #1e293b;">${formatDateStr(s.date)} às ${s.time}</span>
+          <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #4f46e5;">${s.status}</span>
+        </div>
+        <div style="font-size: 12px; color: #475569; line-height: 1.5;">${s.notes || 'Sem observações registradas.'}</div>
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 8px;">${s.serviceType || 'Atendimento'}</div>
+      </div>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Relatório Clínico - ${selectedPatient.name}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #fff; max-width: 800px; margin: 0 auto; }
+            .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #4f46e5; padding-bottom: 20px; margin-bottom: 30px; }
+            .title h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e293b; }
+            .title p { margin: 5px 0 0; font-size: 14px; color: #64748b; }
+            .meta { text-align: right; }
+            .meta p { margin: 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+            .meta span { font-size: 13px; color: #1e293b; font-weight: 600; }
+            
+            .stats-grid { display: grid; grid-cols: 2; gap: 20px; display: flex; margin-bottom: 30px; }
+            .stat-card { flex: 1; padding: 20px; background: #f1f5f9; border-radius: 16px; text-align: center; }
+            .stat-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; }
+            .stat-value { font-size: 24px; font-weight: 800; color: #4f46e5; }
+
+            .patient-info { margin-bottom: 40px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; }
+            .info-item { margin-bottom: 10px; font-size: 13px; }
+            .info-label { font-weight: 700; color: #64748b; width: 120px; display: inline-block; }
+
+            h2 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+            
+            .actions { margin-bottom: 30px; display: flex; justify-content: center; }
+            .btn-print { background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+            
+            @media print {
+              .actions { display: none; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="actions">
+            <button class="btn-print" onclick="window.print()">IMPRIMIR RELATÓRIO PDF</button>
+          </div>
+          
+          <div class="header">
+            <div class="title">
+              <h1>Relatório de Evolução Clínica</h1>
+              <p>Profissional: <strong>${activeProfissional?.nomeCompleto || 'Não informado'}</strong></p>
+            </div>
+            <div class="meta">
+              <p>Documento gerado em</p>
+              <span>${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          </div>
+
+          <div class="patient-info">
+            <div class="info-item"><span class="info-label">Paciente:</span> <span>${selectedPatient.name}</span></div>
+            <div class="info-item"><span class="info-label">CPF:</span> <span>${selectedPatient.cpf || '—'}</span></div>
+            <div class="info-item"><span class="info-label">Contato:</span> <span>${selectedPatient.email} / ${selectedPatient.phone}</span></div>
+            <div class="info-item"><span class="info-label">Nascimento:</span> <span>${formatDateStr(selectedPatient.dateOfBirth)}</span></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total de Sessões</div>
+              <div class="stat-value">${patientHistory.length}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Taxa de Engajamento</div>
+              <div class="stat-value">${engagement}%</div>
+            </div>
+          </div>
+
+          <h2>Histórico de Atendimentos</h2>
+          <div class="history">
+            ${historyRows || '<p style="text-align: center; color: #94a3b8; font-style: italic;">Nenhum registro encontrado para este paciente.</p>'}
+          </div>
+
+          <div style="margin-top: 60px; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+            <div style="width: 200px; border-top: 1px solid #1e293b; margin: 0 auto 10px;"></div>
+            <p style="font-size: 11px; font-weight: 700; color: #1e293b; margin: 0;">${activeProfissional?.nomeCompleto || 'Assinatura do Profissional'}</p>
+            <p style="font-size: 9px; color: #64748b; margin: 2px 0 0;">${activeProfissional?.registroProfissional || 'Conselho Regional de Psicologia'}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -110,7 +222,17 @@ const Reports: React.FC = () => {
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Histórico de Atendimentos</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedPatient(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><X size={24} /></button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleExportIndividualPDF}
+                  className="p-2.5 text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all flex items-center gap-2 text-xs font-bold"
+                  title="Exportar Relatório"
+                >
+                  <FileDown size={20} />
+                  <span className="hidden sm:inline">Exportar Relatório</span>
+                </button>
+                <button onClick={() => setSelectedPatient(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><X size={24} /></button>
+              </div>
             </header>
             
             <div className="p-8 space-y-10">
