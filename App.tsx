@@ -130,13 +130,7 @@ const AppContent: React.FC = () => {
                   Junte-se a centenas de psicólogos <br/> que já evoluíram sua gestão.
                 </p>
               </div>
-              <div className="pt-8 border-t border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={18} className="text-indigo-300" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Segurança Bancária</span>
-                </div>
-                <span className="text-[10px] font-bold opacity-50">v2.4.0</span>
-              </div>
+              {/* Seção removida conforme solicitado na imagem */}
             </div>
           </div>
 
