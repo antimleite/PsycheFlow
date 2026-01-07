@@ -2,15 +2,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { User } from '../types';
 
-// Credenciais atualizadas conforme solicitado pelo usuário
-const supabaseUrl = 'https://phfodgwnbsmmexextrts.supabase.co';
-const supabaseAnonKey = 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
+// Credenciais fornecidas pelo usuário
+const DEFAULT_URL = 'https://phfodgwnbsmmexextrts.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_Hc1Bcx7e2eCNwxp21w8FMQ_9J1Z7s21';
 
-// Proteção para garantir que as chaves existem antes de criar o cliente
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase keys are missing. Auth will not work.");
-}
+// O Vite injeta variáveis em process.env via config. 
+// Usamos o operador OR para garantir que, se a env for string vazia ou undefined, usemos o DEFAULT.
+const supabaseUrl = (process.env.VITE_SUPABASE_URL || DEFAULT_URL).trim();
+const supabaseAnonKey = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_KEY).trim();
 
+// Inicialização do cliente Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper para mapear nomes de colunas (snake_case) para o modelo de dados (camelCase)
@@ -31,7 +32,6 @@ export const mapToSnakeCase = (data: any) => {
   if (!data) return null;
   const newObj: { [key: string]: any } = {};
   for (const key in data) {
-    // Apenas mapeia se o valor não for undefined
     if (data[key] !== undefined) {
       const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       newObj[snakeKey] = data[key];
@@ -50,13 +50,15 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
       .single();
 
     if (error) {
-      console.error('Error fetching user profile:', error.message || error);
+      if (error.code !== 'PGRST116') { 
+        console.error('Erro Supabase ao buscar perfil:', error.message);
+      }
       return null;
     }
     
     return mapToCamelCase(data) as User;
   } catch (err: any) {
-    console.error('Supabase connection error:', err.message || err);
+    console.error('Erro de conexão ao buscar perfil:', err.message);
     return null;
   }
 };

@@ -94,19 +94,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const handleSession = useCallback(async (session: any) => {
     try {
       if (session?.user) {
-        const profile = await getUserProfile(session.user.id);
-        if (profile) {
-          const formattedProfile: User = { 
-            ...profile, 
-            professionalAccess: Array.isArray(profile.professionalAccess) ? profile.professionalAccess : [] 
+        let profile = await getUserProfile(session.user.id);
+        
+        if (!profile) {
+          profile = {
+            id: session.user.id,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+            email: session.user.email || '',
+            phone: session.user.user_metadata?.phone || '',
+            role: session.user.user_metadata?.role || UserRole.STANDARD,
+            status: UserStatus.ACTIVE,
+            professionalAccess: session.user.user_metadata?.professional_access || []
           };
-          setCurrentUser(formattedProfile);
-          setAuthenticated(true);
-          await fetchAllData(formattedProfile);
-        } else {
-          setAuthenticated(false);
-          setCurrentUser(null);
+          console.log("Perfil não encontrado na tabela. Usando metadados do Auth.");
         }
+
+        const formattedProfile: User = { 
+          ...profile, 
+          professionalAccess: Array.isArray(profile.professionalAccess) ? profile.professionalAccess : [] 
+        };
+        
+        setCurrentUser(formattedProfile);
+        setAuthenticated(true);
+        await fetchAllData(formattedProfile);
       } else {
         setCurrentUser(null);
         setAuthenticated(false);
@@ -120,28 +130,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const setupAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleSession(session);
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_OUT') { 
-          setCurrentUser(null); 
-          setAuthenticated(false); 
-          setLoading(false); 
+      try {
+        if (!supabase || !supabase.auth) {
+            console.error("Supabase client not initialized.");
+            if (mounted) setLoading(false);
+            return { unsubscribe: () => {} };
         }
-        else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          await handleSession(session); 
-        }
-      });
 
-      return subscription;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) await handleSession(session);
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+          if (event === 'SIGNED_OUT') { 
+            setCurrentUser(null); 
+            setAuthenticated(false); 
+            setLoading(false); 
+          }
+          else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+            await handleSession(session); 
+          }
+        });
+
+        return subscription;
+      } catch (err) {
+        console.error("Auth setup error:", err);
+        if (mounted) setLoading(false);
+        return { unsubscribe: () => {} };
+      }
     };
     
-    const authSubscription = setupAuth();
+    const authSubscriptionPromise = setupAuth();
     
     return () => {
-      authSubscription.then(sub => sub.unsubscribe());
+      mounted = false;
+      authSubscriptionPromise.then(sub => sub && typeof sub.unsubscribe === 'function' && sub.unsubscribe());
     };
   }, [handleSession]);
 
@@ -165,26 +191,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [activeProfissional, visiblePackages, visiblePayments, visibleSessions]);
 
-  const refreshPackageCredits = async (packageId: string) => {
-    const pkg = packages.find(p => p.id === packageId);
-    if (!pkg) return;
-    const { data } = await supabase.from('sessions').select('*').eq('package_id', packageId);
-    if (data) {
-      const pkgSessions = data.map(s => mapToCamelCase(s) as Session);
-      const usedCount = pkgSessions.filter(s => [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE].includes(s.status)).length;
-      const updatedPkg = { ...pkg, usedSessions: usedCount, remainingSessions: pkg.totalSessions - usedCount, status: (pkg.totalSessions - usedCount) <= 0 ? PackageStatus.FINISHED : PackageStatus.ACTIVE };
-      await updatePackage(updatedPkg);
+  const login = async (email: string, password?: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: password! });
+      if (error) {
+        setLoading(false);
+        let message = error.message;
+        if (message === 'Invalid login credentials') message = 'E-mail ou senha incorretos.';
+        if (message === 'Email not confirmed') message = 'E-mail não confirmado. Verifique sua caixa de entrada.';
+        return { success: false, message };
+      }
+      if (data.session) await handleSession(data.session);
+      return { success: true };
+    } catch (err: any) {
+      setLoading(false);
+      return { success: false, message: err.message || 'Erro inesperado durante o login.' };
     }
   };
 
-  const login = async (email: string, password?: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password: password! });
-    if (error) return { success: false, message: 'E-mail ou senha incorretos.' };
-    return { success: true };
-  };
-
   const register = async (name: string, email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { name, role: UserRole.STANDARD, status: UserStatus.INACTIVE, professional_access: [] } } });
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password, 
+      options: { 
+        data: { 
+          name, 
+          role: UserRole.STANDARD, 
+          status: UserStatus.INACTIVE, 
+          professional_access: [] 
+        } 
+      } 
+    });
     if (error) return { success: false, message: error.message };
     return { success: true };
   };
@@ -223,7 +261,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (data && data[0]) {
       const newSession = mapToCamelCase(data[0]) as Session;
       setSessions(prev => [...prev, newSession]);
-      if (newSession.packageId) await refreshPackageCredits(newSession.packageId);
     }
     return { success: true };
   };
@@ -235,7 +272,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (data && data[0]) {
       const newS = mapToCamelCase(data[0]) as Session;
       setSessions(prev => prev.map(s => s.id === id ? newS : s));
-      if (newS.packageId) await refreshPackageCredits(newS.packageId);
     }
   };
 
@@ -314,22 +350,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateProfissional = async (profToUpdate: Profissional) => {
     const { id, criadoEm, ...rest } = profToUpdate;
-    // Removemos explicitamente id e criadoEm do payload de update
     const payload = mapToSnakeCase(rest);
     const { data, error } = await supabase.from('profissionais').update(payload).eq('id', id).select();
-    
-    if (error) {
-      console.error("Supabase error updating professional:", error);
-      throw error;
-    }
-    
+    if (error) throw error;
     if (data && data[0]) {
       const updated = mapToCamelCase(data[0]) as Profissional;
       setProfissionais(prev => prev.map(p => p.id === id ? updated : p));
       if (id === activeProfissional?.id) setActiveProfissional(updated);
-    } else {
-      // Se não retornou data mas também não deu erro, pode ser RLS. Forçamos atualização local se id for válido.
-      setProfissionais(prev => prev.map(p => p.id === id ? { ...p, ...profToUpdate } : p));
     }
   };
 
