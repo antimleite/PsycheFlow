@@ -11,12 +11,18 @@ export default defineConfig({
     'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || ''),
   },
   server: {
-    historyApiFallback: true
-  },
+    port: 3000,
+},
+preview: {
+  // configurações de preview se necessário
+}
   build: {
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
       // Garante que o build trate corretamente as dependências externas do esm.sh se necessário
       external: [],
     }
