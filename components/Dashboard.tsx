@@ -115,7 +115,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dStr = `${year}-${month}-${day}`;
-    return visibleSessions.filter(s => s.date === dStr && s.status !== AttendanceStatus.CANCELLED);
+    return visibleSessions
+      .filter(s => s.date === dStr && s.status !== AttendanceStatus.CANCELLED)
+      .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   return (
