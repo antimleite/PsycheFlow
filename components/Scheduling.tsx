@@ -48,6 +48,7 @@ const Scheduling: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Saldos calculados dinamicamente
   const avulsoCredits = useMemo(() => {
     if (!patientId) return 0;
     return getAvailableCredits(patientId, ServiceType.SINGLE);
@@ -57,6 +58,19 @@ const Scheduling: React.FC = () => {
     if (!patientId) return 0;
     return getAvailableCredits(patientId, ServiceType.PACKAGE);
   }, [patientId, getAvailableCredits]);
+
+  // Efeito para selecionar automaticamente o tipo disponível ao trocar de paciente
+  useEffect(() => {
+    if (patientId && !isEditMode) {
+      if (pacoteCredits > 0) {
+        setServiceType(ServiceType.PACKAGE);
+        handleServiceTypeChange(ServiceType.PACKAGE);
+      } else if (avulsoCredits > 0) {
+        setServiceType(ServiceType.SINGLE);
+        handleServiceTypeChange(ServiceType.SINGLE);
+      }
+    }
+  }, [patientId, isEditMode, pacoteCredits, avulsoCredits]);
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -114,7 +128,6 @@ const Scheduling: React.FC = () => {
       return;
     }
 
-    // LÓGICA DE VÍNCULO: Identifica o pacote no banco para descontar corretamente
     const relevantPkgs = visiblePackages.filter(pkg => 
       pkg.patientId === patientId && 
       pkg.status === PackageStatus.ACTIVE && 
@@ -213,7 +226,7 @@ const Scheduling: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Gestão da Agenda</h2>
           <p className="text-gray-500">Identificadores visuais para Avulsos e Pacotes.</p>
         </div>
-        <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-md active:scale-95">
           <Plus size={19} /> Novo Agendamento
         </button>
       </div>
@@ -302,10 +315,11 @@ const Scheduling: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
-             <div className="flex justify-between items-center mb-8">
+             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Clock className="text-indigo-600" />{isEditMode ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100 p-1"><X size={20} /></button>
              </div>
+             
              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Paciente</label>
@@ -316,43 +330,53 @@ const Scheduling: React.FC = () => {
                 </div>
 
                 {patientId && !isEditMode && !editingSession && (
-                  <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50 flex items-center justify-around animate-in fade-in duration-300">
-                    <div className="text-center">
-                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Créditos Avulsos</span>
-                      <span className={`text-lg font-black ${avulsoCredits > 0 ? 'text-indigo-700' : 'text-indigo-300'}`}>{avulsoCredits}</span>
+                  <div className="bg-indigo-50/50 rounded-[24px] p-6 border border-indigo-100/50 flex items-center justify-around animate-in slide-in-from-top-2 duration-300">
+                    <div className="text-center group">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] block mb-1">Créditos Avulsos</span>
+                      <span className={`text-2xl font-black ${avulsoCredits > 0 ? 'text-indigo-600' : 'text-indigo-300'}`}>{avulsoCredits}</span>
                     </div>
-                    <div className="w-px h-8 bg-indigo-100"></div>
-                    <div className="text-center">
-                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Sessões de Pacote</span>
-                      <span className={`text-lg font-black ${pacoteCredits > 0 ? 'text-indigo-700' : 'text-indigo-300'}`}>{pacoteCredits}</span>
+                    <div className="w-px h-10 bg-indigo-100 mx-4"></div>
+                    <div className="text-center group">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.1em] block mb-1">Sessões de Pacote</span>
+                      <span className={`text-2xl font-black ${pacoteCredits > 0 ? 'text-indigo-600' : 'text-indigo-300'}`}>{pacoteCredits}</span>
                     </div>
                   </div>
                 )}
 
                 {!isEditMode && !editingSession && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tipo de Agendamento</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Tipo de Agendamento</label>
+                    <div className="grid grid-cols-2 gap-4">
                       <button 
                         key={ServiceType.SINGLE} 
                         type="button" 
+                        disabled={avulsoCredits === 0}
                         onClick={() => handleServiceTypeChange(ServiceType.SINGLE)} 
-                        className={`relative px-4 py-4 rounded-2xl border text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${serviceType === ServiceType.SINGLE ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg' : 'border-gray-200 text-gray-400 hover:border-indigo-200'}`}
+                        className={`relative px-4 py-5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 group ${serviceType === ServiceType.SINGLE ? 'border-indigo-600 bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed'}`}
                       >
-                        <Zap size={14} className={serviceType === ServiceType.SINGLE ? 'text-white' : 'text-indigo-200'} />
+                        <Zap size={18} className={serviceType === ServiceType.SINGLE ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-500'} />
                         Avulso
-                        {avulsoCredits > 0 && <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-sm ${serviceType === ServiceType.SINGLE ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>{avulsoCredits}</span>}
+                        {avulsoCredits > 0 && (
+                          <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.SINGLE ? 'bg-white text-indigo-600 border-indigo-600' : 'bg-indigo-600 text-white border-white'}`}>
+                            {avulsoCredits}
+                          </span>
+                        )}
                       </button>
 
                       <button 
                         key={ServiceType.PACKAGE} 
                         type="button" 
+                        disabled={pacoteCredits === 0}
                         onClick={() => handleServiceTypeChange(ServiceType.PACKAGE)} 
-                        className={`relative px-4 py-4 rounded-2xl border text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${serviceType === ServiceType.PACKAGE ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg' : 'border-gray-200 text-gray-400 hover:border-indigo-200'}`}
+                        className={`relative px-4 py-5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 group ${serviceType === ServiceType.PACKAGE ? 'border-indigo-600 bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed'}`}
                       >
-                        <Package size={14} className={serviceType === ServiceType.PACKAGE ? 'text-white' : 'text-indigo-200'} />
+                        <Package size={18} className={serviceType === ServiceType.PACKAGE ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-500'} />
                         Pacote
-                        {pacoteCredits > 0 && <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-sm ${serviceType === ServiceType.PACKAGE ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>{pacoteCredits}</span>}
+                        {pacoteCredits > 0 && (
+                          <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.PACKAGE ? 'bg-white text-indigo-600 border-indigo-600' : 'bg-indigo-600 text-white border-white'}`}>
+                            {pacoteCredits}
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -360,21 +384,33 @@ const Scheduling: React.FC = () => {
 
                 <div className="space-y-4">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Data e Horário</label>
-                  <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
+                  <div className="max-h-[200px] overflow-y-auto space-y-3 pr-2 scrollbar-hide">
                     {slots.map((slot, index) => (
-                      <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:bg-gray-100/50">
-                         <input type="date" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.date} onChange={e => updateSlot(index, 'date', e.target.value)} />
-                         <input type="time" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.time} onChange={e => updateSlot(index, 'time', e.target.value)} />
+                      <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all hover:bg-gray-100/50">
+                         <div className="relative">
+                            <input type="date" required className="w-full px-3 py-2 bg-white rounded-xl border border-gray-100 focus:border-indigo-400 outline-none text-xs font-bold shadow-sm" value={slot.date} onChange={e => updateSlot(index, 'date', e.target.value)} />
+                         </div>
+                         <div className="relative">
+                            <input type="time" required className="w-full px-3 py-2 bg-white rounded-xl border border-gray-100 focus:border-indigo-400 outline-none text-xs font-bold shadow-sm" value={slot.time} onChange={e => updateSlot(index, 'time', e.target.value)} />
+                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {errorMessage && <p className="text-xs font-bold text-rose-500 bg-rose-50 p-4 rounded-2xl border border-rose-100 flex items-center gap-2 animate-in shake duration-300"><AlertCircle size={14} /> {errorMessage}</p>}
+                {errorMessage && (
+                  <div className="text-xs font-bold text-rose-500 bg-rose-50 p-4 rounded-2xl border border-rose-100 flex items-center gap-2 animate-in shake duration-300">
+                    <AlertCircle size={16} /> {errorMessage}
+                  </div>
+                )}
                 
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-50">
-                   <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600">Cancelar</button>
-                   <button type="submit" className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.98]">
+                   <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancelar</button>
+                   <button 
+                    type="submit" 
+                    disabled={(serviceType === ServiceType.SINGLE ? avulsoCredits : pacoteCredits) === 0 && !isEditMode}
+                    className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                   >
                      {isEditMode ? 'Salvar Alterações' : (editingSession ? 'Reagendar' : 'Agendar Sessão')}
                    </button>
                 </div>

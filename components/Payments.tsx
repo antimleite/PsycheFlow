@@ -30,16 +30,29 @@ const Payments: React.FC = () => {
 
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.patientId) return;
+    if (!formData.patientId || isSaving) return;
+
     setIsSaving(true);
     setErrorMsg(null);
-    const amountValue = formData.amount === '' ? 0 : parseFloat(formData.amount);
+
+    // Tratamento robusto para o valor numérico
+    let amountValue = 0;
+    if (formData.amount !== '') {
+      const cleanValue = formData.amount.toString().replace(',', '.');
+      amountValue = parseFloat(cleanValue);
+    }
+
+    if (isNaN(amountValue)) {
+      setErrorMsg("O valor informado é inválido. Utilize apenas números e ponto ou vírgula.");
+      setIsSaving(false);
+      return;
+    }
+
     const targetPatientId = formData.patientId;
+    const isEditing = !!editingPayment;
 
     try {
-      let savedPayment: Payment | null = null;
-
-      if (editingPayment) {
+      if (isEditing && editingPayment) {
         const statusChangedToPaid = editingPayment.status !== PaymentStatus.PAID && formData.status === PaymentStatus.PAID;
         const alreadyHasPackage = visiblePackages.some(pkg => pkg.paymentId === editingPayment.id);
 
@@ -50,20 +63,22 @@ const Payments: React.FC = () => {
           date: formData.date, 
           status: formData.status, 
           method: formData.method, 
-          serviceType: formData.serviceType 
+          serviceType: formData.serviceType,
+          notes: formData.notes
         });
 
         if (statusChangedToPaid && !alreadyHasPackage) {
            await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
         }
       } else {
-        savedPayment = await addPayment({ 
+        const savedPayment = await addPayment({ 
           patientId: targetPatientId, 
           amount: amountValue, 
           date: formData.date, 
           status: formData.status, 
           method: formData.method, 
-          serviceType: formData.serviceType 
+          serviceType: formData.serviceType,
+          notes: formData.notes
         });
         
         if (savedPayment && formData.status === PaymentStatus.PAID) {
@@ -73,42 +88,66 @@ const Payments: React.FC = () => {
 
       setShowForm(false);
       resetFormData();
-      if (!editingPayment) { 
+      
+      if (!isEditing) { 
         setLastSavedPatientId(targetPatientId); 
         setShowSuccessDialog(true); 
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Erro ao salvar.");
+      console.error("Erro ao salvar pagamento:", err);
+      // Extrai mensagem amigável de erro do Supabase
+      const message = err.message || err.details || "Houve um erro ao processar o pagamento no servidor.";
+      setErrorMsg(message);
     } finally { 
       setIsSaving(false); 
     }
   };
 
   const generateCreditsInDB = async (patientId: string, type: ServiceType, paymentId: string) => {
-    const sessionsCount = type === ServiceType.PACKAGE ? 4 : 1;
-    const expiry = new Date();
-    expiry.setMonth(expiry.getMonth() + 4); 
-    
-    await addPackage({ 
-      patientId, 
-      totalSessions: sessionsCount, 
-      usedSessions: 0, 
-      remainingSessions: sessionsCount, 
-      expiryDate: expiry.toISOString().split('T')[0], 
-      status: PackageStatus.ACTIVE, 
-      paymentId: paymentId 
-    });
+    try {
+      const sessionsCount = type === ServiceType.PACKAGE ? 4 : 1;
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + 4); 
+      
+      await addPackage({ 
+        patientId, 
+        totalSessions: sessionsCount, 
+        usedSessions: 0, 
+        remainingSessions: sessionsCount, 
+        expiryDate: expiry.toISOString().split('T')[0], 
+        status: PackageStatus.ACTIVE, 
+        paymentId: paymentId 
+      });
+    } catch (err) {
+      console.error("Erro ao gerar créditos para o pagamento:", err);
+    }
   };
 
   const resetFormData = () => {
-    setFormData({ patientId: '', amount: '', date: new Date().toISOString().split('T')[0], method: PaymentMethod.PIX, status: PaymentStatus.PAID, serviceType: ServiceType.SINGLE, notes: '' });
+    setFormData({ 
+      patientId: '', 
+      amount: '', 
+      date: new Date().toISOString().split('T')[0], 
+      method: PaymentMethod.PIX, 
+      status: PaymentStatus.PAID, 
+      serviceType: ServiceType.SINGLE, 
+      notes: '' 
+    });
     setEditingPayment(null);
     setErrorMsg(null);
   };
 
   const handleEdit = (payment: Payment) => {
     setEditingPayment(payment);
-    setFormData({ patientId: payment.patientId, amount: payment.amount.toString(), date: payment.date, method: payment.method || PaymentMethod.PIX, status: payment.status, serviceType: payment.serviceType || ServiceType.SINGLE, notes: '' });
+    setFormData({ 
+      patientId: payment.patientId, 
+      amount: payment.amount.toString(), 
+      date: payment.date, 
+      method: payment.method || PaymentMethod.PIX, 
+      status: payment.status, 
+      serviceType: payment.serviceType || ServiceType.SINGLE, 
+      notes: payment.notes || '' 
+    });
     setShowForm(true);
   };
 
@@ -192,13 +231,26 @@ const Payments: React.FC = () => {
           <div className="bg-white rounded-[32px] shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900">{editingPayment ? 'Editar Pagamento' : 'Novo Pagamento'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-2 text-gray-400 hover:text-gray-600"><X size={24} /></button>
+              <button onClick={() => setShowForm(false)} disabled={isSaving} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors"><X size={24} /></button>
             </div>
-            {errorMsg && <div className="mb-4 p-3 bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold rounded-xl flex items-center gap-2"><AlertCircle size={14} />{errorMsg}</div>}
+            
+            {errorMsg && (
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold rounded-2xl flex items-center gap-3 animate-in shake duration-300">
+                <AlertCircle size={18} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSavePayment} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Paciente</label>
-                <select required className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-medium appearance-none bg-white" value={formData.patientId} onChange={e => setFormData({...formData, patientId: e.target.value})}>
+                <select 
+                  required 
+                  disabled={isSaving || !!editingPayment}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-medium appearance-none bg-white disabled:bg-gray-50" 
+                  value={formData.patientId} 
+                  onChange={e => setFormData({...formData, patientId: e.target.value})}
+                >
                   <option value="">Selecione o paciente...</option>
                   {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -206,33 +258,71 @@ const Payments: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Serviço</label>
-                  <select className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white" value={formData.serviceType} onChange={e => setFormData({...formData, serviceType: e.target.value as ServiceType})}>
+                  <select 
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white disabled:bg-gray-50" 
+                    disabled={isSaving}
+                    value={formData.serviceType} 
+                    onChange={e => setFormData({...formData, serviceType: e.target.value as ServiceType})}
+                  >
                     {Object.values(ServiceType).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Valor (R$)</label>
-                  <input type="number" step="0.01" required className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    disabled={isSaving}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold disabled:bg-gray-50" 
+                    value={formData.amount} 
+                    onChange={e => setFormData({...formData, amount: e.target.value})} 
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
-                  <select className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as PaymentStatus})}>
+                  <select 
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white disabled:bg-gray-50" 
+                    disabled={isSaving}
+                    value={formData.status} 
+                    onChange={e => setFormData({...formData, status: e.target.value as PaymentStatus})}
+                  >
                     {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Forma</label>
-                  <select className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white" value={formData.method} onChange={e => setFormData({...formData, method: e.target.value as PaymentMethod})}>
+                  <select 
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white disabled:bg-gray-50" 
+                    disabled={isSaving}
+                    value={formData.method} 
+                    onChange={e => setFormData({...formData, method: e.target.value as PaymentMethod})}
+                  >
                     {Object.values(PaymentMethod).map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Observações (Opcional)</label>
+                <textarea 
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-medium h-20 resize-none disabled:bg-gray-50" 
+                  disabled={isSaving}
+                  value={formData.notes} 
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
+                  placeholder="Detalhes sobre o pagamento..."
+                />
+              </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-50 mt-4">
-                <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600 transition-colors">Cancelar</button>
-                <button type="submit" disabled={isSaving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center gap-2">
-                  {isSaving && <Loader2 size={16} className="animate-spin" />} Salvar
+                <button type="button" onClick={() => setShowForm(false)} disabled={isSaving} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50">Cancelar</button>
+                <button 
+                  type="submit" 
+                  disabled={isSaving} 
+                  className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center gap-2 disabled:bg-indigo-400"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : null} 
+                  Salvar
                 </button>
               </div>
             </form>
@@ -247,7 +337,7 @@ const Payments: React.FC = () => {
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Concluído</h3>
             <p className="text-gray-500 text-sm mb-8 leading-relaxed">Pagamento registrado e crédito gerado com sucesso no sistema. Deseja agendar a sessão agora?</p>
             <div className="flex flex-col gap-3">
-              <button onClick={() => { setPreSelectedPatientId(lastSavedPatientId); setActiveTab('scheduling'); setShowSuccessDialog(false); }} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2"><Calendar size={18} /> Ir para Agendamento</button>
+              <button onClick={() => { setPreSelectedPatientId(lastSavedPatientId); setActiveTab('scheduling'); setShowSuccessDialog(false); }} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 transition-all"><Calendar size={18} /> Ir para Agendamento</button>
               <button onClick={() => setShowSuccessDialog(false)} className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition-all">Agora não</button>
             </div>
           </div>
