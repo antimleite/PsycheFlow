@@ -27,7 +27,7 @@ interface AppContextType {
   updatePatient: (patient: Patient) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
   addSession: (session: Omit<Session, 'id' | 'profissionalId'>) => Promise<{ success: boolean, message?: string }>;
-  updateSession: (session: Session) => Promise<void>;
+  updateSession: (session: Session) => Promise<{ success: boolean, message?: string }>;
   rescheduleSession: (oldSessionId: string, newSlot: { date: string, time: string, notes?: string }) => Promise<void>;
   addPayment: (payment: Omit<Payment, 'id' | 'profissionalId'>) => Promise<Payment | null>;
   updatePayment: (payment: Payment) => Promise<void>;
@@ -178,8 +178,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!activeProfissional) return 0;
     const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
     
-    // Diferenciar os pacotes pelo número de sessões
-    // Avulso = 1 sessão | Pacote = >1 sessões (Geralmente 4)
     const isPackageRequest = type === ServiceType.PACKAGE;
     
     const relevantPackages = visiblePackages.filter(pkg => 
@@ -190,7 +188,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const totalGranted = relevantPackages.reduce((acc, curr) => acc + curr.totalSessions, 0);
     
-    // Contamos as sessões que estão vinculadas especificamente aos pacotes do tipo correto
     const totalConsumed = visibleSessions.filter(s => 
       s.patientId === patientId && 
       s.packageId && 
@@ -200,7 +197,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     let remaining = Math.max(0, totalGranted - totalConsumed);
     
-    // Fallback/Retrocompatibilidade apenas para Avulso (Single)
     if (!isPackageRequest) {
       const paidPaymentsWithoutPackage = visiblePayments.filter(p => 
         p.patientId === patientId && 
@@ -312,13 +308,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateSession = async (updated: Session) => {
-    const { id, ...rest } = updated;
+    const { id, profissionalId, ...rest } = updated;
     const { data, error } = await supabase.from('sessions').update(mapToSnakeCase(rest)).eq('id', id).select();
-    if (error) return;
+    
+    if (error) {
+      console.error("Erro ao atualizar sessão:", error);
+      return { success: false, message: error.message };
+    }
+    
     if (data && data[0]) {
       const newS = mapToCamelCase(data[0]) as Session;
       setSessions(prev => prev.map(s => s.id === id ? newS : s));
+      return { success: true };
     }
+    
+    return { success: false, message: "Sessão não encontrada para atualização." };
   };
 
   const rescheduleSession = async (oldSessionId: string, newSlot: { date: string, time: string, notes?: string }) => {
@@ -363,7 +367,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addUser = async (userData: any) => {
-    const { data, error } = await supabase.auth.signUp({ email: userData.email, password: userData.password, options: { data: { name: userData.name, role: userData.role, status: userData.status, phone: userData.phone, professional_access: userData.professionalAccess || [] } } });
+    const { data, error } = await supabase.auth.signUp({ email: userData.email, password: userData.password, options: { data: { name: userData.name, role: userData.role, status: userData.status, phone: userData.phone, professional_access: userData.professional_access || [] } } });
     if (error) throw error;
     if (data.user) {
       const { data: uData } = await supabase.from('profiles').select('*');
