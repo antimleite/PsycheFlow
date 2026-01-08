@@ -1,22 +1,16 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { AttendanceStatus, PaymentStatus, PatientStatus, Patient } from '../types';
+import { AttendanceStatus, PatientStatus, Patient } from '../types';
 import { 
-  CheckCircle2, 
   Users, 
   ChevronRight, 
   X, 
-  FileText, 
   History, 
-  Download, 
-  User,
   Activity,
   CalendarCheck,
-  ClipboardList,
   Search,
-  FileDown,
-  Phone
+  FileDown
 } from 'lucide-react';
 
 const Reports: React.FC = () => {
@@ -24,7 +18,6 @@ const Reports: React.FC = () => {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Helper para formatar data string ISO (YYYY-MM-DD) para exibição PT-BR sem fuso horário
   const formatDateStr = (dateStr: string) => {
     if (!dateStr) return '—';
     const [year, month, day] = dateStr.split('-');
@@ -84,73 +77,38 @@ const Reports: React.FC = () => {
             .title h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e293b; }
             .title p { margin: 5px 0 0; font-size: 14px; color: #64748b; }
             .meta { text-align: right; }
-            .meta p { margin: 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+            .meta p { margin: 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
             .meta span { font-size: 13px; color: #1e293b; font-weight: 600; }
-            
-            .stats-grid { display: grid; grid-cols: 2; gap: 20px; display: flex; margin-bottom: 30px; }
+            .stats-grid { display: flex; gap: 20px; margin-bottom: 30px; }
             .stat-card { flex: 1; padding: 20px; background: #f1f5f9; border-radius: 16px; text-align: center; }
-            .stat-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px; }
+            .stat-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
             .stat-value { font-size: 24px; font-weight: 800; color: #4f46e5; }
-
             .patient-info { margin-bottom: 40px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; }
             .info-item { margin-bottom: 10px; font-size: 13px; }
             .info-label { font-weight: 700; color: #64748b; width: 120px; display: inline-block; }
-
-            h2 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-            
-            .actions { margin-bottom: 30px; display: flex; justify-content: center; }
-            .btn-print { background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
-            
-            @media print {
-              .actions { display: none; }
-              body { padding: 0; }
-            }
+            .actions { margin-bottom: 30px; text-align: center; }
+            .btn-print { background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+            @media print { .actions { display: none; } body { padding: 0; } }
           </style>
         </head>
         <body>
-          <div class="actions">
-            <button class="btn-print" onclick="window.print()">IMPRIMIR RELATÓRIO PDF</button>
-          </div>
-          
+          <div class="actions"><button class="btn-print" onclick="window.print()">IMPRIMIR RELATÓRIO PDF</button></div>
           <div class="header">
             <div class="title">
               <h1>Relatório de Evolução Clínica</h1>
               <p>Profissional: <strong>${activeProfissional?.nomeCompleto || 'Não informado'}</strong></p>
             </div>
-            <div class="meta">
-              <p>Documento gerado em</p>
-              <span>${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
+            <div class="meta"><p>Gerado em</p><span>${new Date().toLocaleDateString('pt-BR')}</span></div>
           </div>
-
           <div class="patient-info">
-            <div class="info-item"><span class="info-label">Paciente:</span> <span>${selectedPatient.name}</span></div>
-            <div class="info-item"><span class="info-label">CPF:</span> <span>${selectedPatient.cpf || '—'}</span></div>
-            <div class="info-item"><span class="info-label">Contato:</span> <span>${selectedPatient.email} / ${selectedPatient.phone}</span></div>
-            <div class="info-item"><span class="info-label">Nascimento:</span> <span>${formatDateStr(selectedPatient.dateOfBirth)}</span></div>
+            <div class="info-item"><span class="info-label">Paciente:</span> ${selectedPatient.name}</div>
+            <div class="info-item"><span class="info-label">Contato:</span> ${selectedPatient.phone}</div>
           </div>
-
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-label">Total de Sessões</div>
-              <div class="stat-value">${patientHistory.length}</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Taxa de Engajamento</div>
-              <div class="stat-value">${engagement}%</div>
-            </div>
+            <div class="stat-card"><div class="stat-label">Total de Sessões</div><div class="stat-value">${patientHistory.length}</div></div>
+            <div class="stat-card"><div class="stat-label">Engajamento</div><div class="stat-value">${engagement}%</div></div>
           </div>
-
-          <h2>Histórico de Atendimentos</h2>
-          <div class="history">
-            ${historyRows || '<p style="text-align: center; color: #94a3b8; font-style: italic;">Nenhum registro encontrado para este paciente.</p>'}
-          </div>
-
-          <div style="margin-top: 60px; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-            <div style="width: 200px; border-top: 1px solid #1e293b; margin: 0 auto 10px;"></div>
-            <p style="font-size: 11px; font-weight: 700; color: #1e293b; margin: 0;">${activeProfissional?.nomeCompleto || 'Assinatura do Profissional'}</p>
-            <p style="font-size: 9px; color: #64748b; margin: 2px 0 0;">${activeProfissional?.registroProfissional || 'Conselho Regional de Psicologia'}</p>
-          </div>
+          <div class="history">${historyRows}</div>
         </body>
       </html>
     `;
@@ -188,7 +146,7 @@ const Reports: React.FC = () => {
             <thead>
               <tr className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                 <th className="px-8 py-5">Nome</th>
-                <th className="px-8 py-5">Contato / Telefone</th>
+                <th className="px-8 py-5">Contato Telefônico</th>
                 <th className="px-8 py-5 text-center">Cadastro</th>
                 <th className="px-8 py-5 text-right">Evolução</th>
               </tr>
@@ -204,9 +162,6 @@ const Reports: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              {activePatients.length === 0 && (
-                <tr><td colSpan={4} className="px-8 py-10 text-center text-gray-400 italic">Nenhum paciente ativo encontrado.</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -220,22 +175,19 @@ const Reports: React.FC = () => {
                 <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl">{selectedPatient.name.charAt(0)}</div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{selectedPatient.name}</h3>
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Histórico de Atendimentos</p>
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Histórico Clínico</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={handleExportIndividualPDF}
-                  className="p-2.5 text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all flex items-center gap-2 text-xs font-bold"
-                  title="Exportar Relatório"
+                  className="px-4 py-2 text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-all flex items-center gap-2 text-xs font-bold"
                 >
-                  <FileDown size={20} />
-                  <span className="hidden sm:inline">Exportar Relatório</span>
+                  <FileDown size={18} /> Exportar Relatório
                 </button>
                 <button onClick={() => setSelectedPatient(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><X size={24} /></button>
               </div>
             </header>
-            
             <div className="p-8 space-y-10">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
@@ -253,12 +205,8 @@ const Reports: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               <section className="space-y-6">
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-                  <History size={16} className="text-indigo-600" />
-                  Evolução Clínica
-                </h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2"><History size={16} className="text-indigo-600" /> Evolução Clínica</h4>
                 <div className="space-y-6 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-gray-100">
                   {patientHistory.map((session) => (
                     <div key={session.id} className="relative pl-10">
@@ -268,18 +216,10 @@ const Reports: React.FC = () => {
                           <p className="text-sm font-bold text-gray-900">{formatDateStr(session.date)} às {session.time}</p>
                           <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${session.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{session.status}</span>
                         </div>
-                        {session.notes ? (
-                          <p className="text-xs text-gray-600 leading-relaxed font-medium">{session.notes}</p>
-                        ) : (
-                          <p className="text-xs text-gray-400 italic">Nenhuma nota clínica registrada.</p>
-                        )}
-                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-tight">{session.serviceType}</p>
+                        <p className="text-xs text-gray-600 leading-relaxed font-medium">{session.notes || 'Nenhuma nota registrada.'}</p>
                       </div>
                     </div>
                   ))}
-                  {patientHistory.length === 0 && (
-                    <div className="py-20 text-center text-gray-400 italic">Sem registros de atendimentos.</div>
-                  )}
                 </div>
               </section>
             </div>
