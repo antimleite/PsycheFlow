@@ -178,45 +178,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!activeProfissional) return 0;
     const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
     
-    // Agora unificamos a busca de créditos: olhamos para todos os "packages" ativos do paciente (que podem ser créditos de 1 ou 4 sessões)
-    const activeCredits = visiblePackages.filter(pkg => pkg.patientId === patientId && pkg.status === PackageStatus.ACTIVE);
+    // Diferenciar os pacotes pelo número de sessões
+    // Avulso = 1 sessão | Pacote = >1 sessões (Geralmente 4)
+    const isPackageRequest = type === ServiceType.PACKAGE;
     
-    if (activeCredits.length > 0) {
-      let totalGranted = activeCredits.reduce((acc, curr) => acc + curr.totalSessions, 0);
-      // Contamos todas as sessões que já consumiram ou reservaram crédito de um pacote/pagamento
-      let totalConsumed = visibleSessions.filter(s => s.patientId === patientId && s.packageId && consumedStatuses.includes(s.status)).length;
+    const relevantPackages = visiblePackages.filter(pkg => 
+      pkg.patientId === patientId && 
+      pkg.status === PackageStatus.ACTIVE &&
+      (isPackageRequest ? pkg.totalSessions > 1 : pkg.totalSessions === 1)
+    );
+    
+    const totalGranted = relevantPackages.reduce((acc, curr) => acc + curr.totalSessions, 0);
+    
+    // Contamos as sessões que estão vinculadas especificamente aos pacotes do tipo correto
+    const totalConsumed = visibleSessions.filter(s => 
+      s.patientId === patientId && 
+      s.packageId && 
+      relevantPackages.some(pkg => pkg.id === s.packageId) &&
+      consumedStatuses.includes(s.status)
+    ).length;
+
+    let remaining = Math.max(0, totalGranted - totalConsumed);
+    
+    // Fallback/Retrocompatibilidade apenas para Avulso (Single)
+    if (!isPackageRequest) {
+      const paidPaymentsWithoutPackage = visiblePayments.filter(p => 
+        p.patientId === patientId && 
+        p.serviceType === ServiceType.SINGLE && 
+        p.status === PaymentStatus.PAID &&
+        !visiblePackages.some(pkg => pkg.paymentId === p.id)
+      ).length;
       
-      const remainingFromPackages = Math.max(0, totalGranted - totalConsumed);
+      const consumedWithoutPackage = visibleSessions.filter(s => 
+        s.patientId === patientId && 
+        s.serviceType === ServiceType.SINGLE && 
+        !s.packageId &&
+        consumedStatuses.includes(s.status)
+      ).length;
       
-      // Se for ServiceType.SINGLE, também permitimos usar pagamentos avulsos que ainda não geraram um "package" (retrocompatibilidade)
-      if (type === ServiceType.SINGLE) {
-        const paidPaymentsWithoutPackage = visiblePayments.filter(p => 
-          p.patientId === patientId && 
-          p.serviceType === ServiceType.SINGLE && 
-          p.status === PaymentStatus.PAID &&
-          !visiblePackages.some(pkg => pkg.paymentId === p.id)
-        ).length;
-        
-        const consumedWithoutPackage = visibleSessions.filter(s => 
-          s.patientId === patientId && 
-          s.serviceType === ServiceType.SINGLE && 
-          !s.packageId &&
-          consumedStatuses.includes(s.status)
-        ).length;
-        
-        return remainingFromPackages + Math.max(0, paidPaymentsWithoutPackage - consumedWithoutPackage);
-      }
-      
-      return remainingFromPackages;
-    } else {
-      // Fallback para quando não há pacotes explícitos registrados
-      if (type === ServiceType.SINGLE) {
-        const paidCredits = visiblePayments.filter(p => p.patientId === patientId && p.serviceType === ServiceType.SINGLE && p.status === PaymentStatus.PAID).length;
-        const consumedCredits = visibleSessions.filter(s => s.patientId === patientId && s.serviceType === ServiceType.SINGLE && consumedStatuses.includes(s.status)).length;
-        return Math.max(0, paidCredits - consumedCredits);
-      }
-      return 0;
+      remaining += Math.max(0, paidPaymentsWithoutPackage - consumedWithoutPackage);
     }
+    
+    return remaining;
   }, [activeProfissional, visiblePackages, visiblePayments, visibleSessions]);
 
   const login = async (email: string, password?: string) => {

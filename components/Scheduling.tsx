@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2 } from 'lucide-react';
 import { AttendanceStatus, Session, ServiceType, PackageStatus } from '../types';
 
 type SortField = 'datetime' | 'status' | 'type';
@@ -18,6 +18,7 @@ const Scheduling: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortField>('datetime');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [sessionToCancel, setSessionToCancel] = useState<Session | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   
   const [filterPatientId, setFilterPatientId] = useState('');
   const [filterDate, setFilterDate] = useState('');
@@ -48,7 +49,7 @@ const Scheduling: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Saldos calculados dinamicamente
+  // Saldos calculados dinamicamente - agora estritamente separados por tipo
   const avulsoCredits = useMemo(() => {
     if (!patientId) return 0;
     return getAvailableCredits(patientId, ServiceType.SINGLE);
@@ -193,9 +194,18 @@ const Scheduling: React.FC = () => {
   };
 
   const confirmCancellation = async () => {
-    if (!sessionToCancel) return;
-    await updateSession({ ...sessionToCancel, status: AttendanceStatus.CANCELLED });
-    setSessionToCancel(null);
+    if (!sessionToCancel || isCancelling) return;
+    
+    setIsCancelling(true);
+    try {
+      await updateSession({ ...sessionToCancel, status: AttendanceStatus.CANCELLED });
+      setSessionToCancel(null);
+    } catch (err) {
+      console.error("Erro ao cancelar agendamento:", err);
+      alert("Não foi possível processar o cancelamento agora. Tente novamente.");
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const resetForm = () => {
@@ -257,57 +267,63 @@ const Scheduling: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredSessions.map(session => (
-              <tr key={session.id} className="hover:bg-gray-50/50 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm text-gray-900">{visiblePatients.find(p => p.id === session.patientId)?.name}</span>
-                    <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{session.notes}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    {session.serviceType === ServiceType.PACKAGE || session.packageId ? (
-                      <div className="flex items-center gap-2 bg-purple-50 text-purple-600 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm">
-                        <Package size={14} className="animate-in zoom-in duration-300" />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Pacote</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1.5 rounded-xl shadow-sm">
-                        <Zap size={14} className="animate-in zoom-in duration-300" />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Avulso</span>
+            {filteredSessions.map(session => {
+              // Lógica robusta para determinar se é Pacote ou Avulso
+              const isActuallyPackage = session.serviceType === ServiceType.PACKAGE || 
+                (session.packageId && !session.serviceType && visiblePackages.find(p => p.id === session.packageId)?.totalSessions! > 1);
+
+              return (
+                <tr key={session.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-gray-900">{visiblePatients.find(p => p.id === session.patientId)?.name}</span>
+                      <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{session.notes}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      {isActuallyPackage ? (
+                        <div className="flex items-center gap-2 bg-purple-50 text-purple-600 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm">
+                          <Package size={14} className="animate-in zoom-in duration-300" />
+                          <span className="text-[10px] font-black uppercase tracking-tighter">Pacote</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1.5 rounded-xl shadow-sm">
+                          <Zap size={14} className="animate-in zoom-in duration-300" />
+                          <span className="text-[10px] font-black uppercase tracking-tighter">Avulso</span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="text-xs font-bold text-gray-700">{formatDateDisplay(session.date)}</div>
+                    <div className="text-[10px] text-gray-400">{session.time}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                      session.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                      session.status === AttendanceStatus.ABSENT_WITHOUT_NOTICE ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                      session.status === AttendanceStatus.RESCHEDULED ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                      session.status === AttendanceStatus.CANCELLED ? 'bg-gray-100 text-gray-400 border-gray-200' :
+                      'bg-blue-50 text-blue-600 border-blue-100'
+                    }`}>{session.status}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right relative">
+                    <button onClick={() => setMenuOpenSessionId(menuOpenSessionId === session.id ? null : session.id)} className="p-2 text-gray-400 hover:text-indigo-600"><MoreHorizontal size={18} /></button>
+                    {menuOpenSessionId === session.id && (
+                      <div ref={menuRef} className="absolute right-6 top-12 w-48 bg-white rounded-2xl border border-gray-100 shadow-2xl z-50 p-1 flex flex-col animate-in zoom-in-95 duration-150">
+                        <button onClick={() => handleStatusUpdate(session, AttendanceStatus.COMPLETED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"><CheckCircle2 size={16} /> Realizada</button>
+                        <button onClick={() => handleStatusUpdate(session, AttendanceStatus.ABSENT_WITHOUT_NOTICE)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"><UserX size={16} /> Falta s/ Aviso</button>
+                        <div className="h-px bg-gray-50 my-1"></div>
+                        <button onClick={() => handleEditDirectly(session)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><Edit2 size={16} /> Editar Horário</button>
+                        <button onClick={() => handleRescheduleAction(session)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><RotateCcw size={16} /> Reagendar</button>
+                        <button onClick={() => handleStatusUpdate(session, AttendanceStatus.CANCELLED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-gray-400 hover:bg-gray-50 rounded-xl transition-colors"><X size={16} /> Cancelar</button>
                       </div>
                     )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <div className="text-xs font-bold text-gray-700">{formatDateDisplay(session.date)}</div>
-                  <div className="text-[10px] text-gray-400">{session.time}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                    session.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                    session.status === AttendanceStatus.ABSENT_WITHOUT_NOTICE ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                    session.status === AttendanceStatus.RESCHEDULED ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                    session.status === AttendanceStatus.CANCELLED ? 'bg-gray-100 text-gray-400 border-gray-200' :
-                    'bg-blue-50 text-blue-600 border-blue-100'
-                  }`}>{session.status}</span>
-                </td>
-                <td className="px-6 py-4 text-right relative">
-                  <button onClick={() => setMenuOpenSessionId(menuOpenSessionId === session.id ? null : session.id)} className="p-2 text-gray-400 hover:text-indigo-600"><MoreHorizontal size={18} /></button>
-                  {menuOpenSessionId === session.id && (
-                    <div ref={menuRef} className="absolute right-6 top-12 w-48 bg-white rounded-2xl border border-gray-100 shadow-2xl z-50 p-1 flex flex-col animate-in zoom-in-95 duration-150">
-                      <button onClick={() => handleStatusUpdate(session, AttendanceStatus.COMPLETED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"><CheckCircle2 size={16} /> Realizada</button>
-                      <button onClick={() => handleStatusUpdate(session, AttendanceStatus.ABSENT_WITHOUT_NOTICE)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"><UserX size={16} /> Falta s/ Aviso</button>
-                      <div className="h-px bg-gray-50 my-1"></div>
-                      <button onClick={() => handleEditDirectly(session)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><Edit2 size={16} /> Editar Horário</button>
-                      <button onClick={() => handleRescheduleAction(session)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><RotateCcw size={16} /> Reagendar</button>
-                      <button onClick={() => handleStatusUpdate(session, AttendanceStatus.CANCELLED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-gray-400 hover:bg-gray-50 rounded-xl transition-colors"><X size={16} /> Cancelar</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -357,7 +373,7 @@ const Scheduling: React.FC = () => {
                         <Zap size={18} className={serviceType === ServiceType.SINGLE ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-500'} />
                         Avulso
                         {avulsoCredits > 0 && (
-                          <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.SINGLE ? 'bg-white text-indigo-600 border-indigo-600' : 'bg-indigo-600 text-white border-white'}`}>
+                          <span className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.SINGLE ? 'bg-indigo-600 text-white border-white' : 'bg-indigo-600 text-white border-white'}`}>
                             {avulsoCredits}
                           </span>
                         )}
@@ -373,7 +389,7 @@ const Scheduling: React.FC = () => {
                         <Package size={18} className={serviceType === ServiceType.PACKAGE ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-500'} />
                         Pacote
                         {pacoteCredits > 0 && (
-                          <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.PACKAGE ? 'bg-white text-indigo-600 border-indigo-600' : 'bg-indigo-600 text-white border-white'}`}>
+                          <span className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shadow-md border-2 ${serviceType === ServiceType.PACKAGE ? 'bg-indigo-600 text-white border-white' : 'bg-indigo-600 text-white border-white'}`}>
                             {pacoteCredits}
                           </span>
                         )}
@@ -431,14 +447,19 @@ const Scheduling: React.FC = () => {
             </p>
             <div className="flex flex-col gap-3">
               <button 
+                type="button"
                 onClick={confirmCancellation}
-                className="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold hover:bg-rose-700 shadow-lg flex items-center justify-center gap-2 transition-all"
+                disabled={isCancelling}
+                className="w-full bg-[#E11D48] text-white py-4 rounded-2xl font-bold hover:bg-rose-700 shadow-lg flex items-center justify-center gap-2 transition-all disabled:bg-rose-300"
               >
-                <Trash2 size={18} /> Sim, cancelar
+                {isCancelling ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                Sim, cancelar
               </button>
               <button 
+                type="button"
                 onClick={() => setSessionToCancel(null)}
-                className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition-all"
+                disabled={isCancelling}
+                className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50"
               >
                 Manter Agendamento
               </button>

@@ -7,7 +7,9 @@ import {
   ChevronLeft, 
   ChevronRight,
   AlertTriangle,
-  Wallet
+  Wallet,
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import { AttendanceStatus, ServiceType, PackageStatus } from '../types';
 
@@ -24,16 +26,58 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
   const intelligentAlerts = useMemo(() => {
     const alerts = [];
-    const lowPackages = visiblePackages.filter(p => p.status === PackageStatus.ACTIVE && p.remainingSessions <= 1);
+    
+    // Alerta de Saldo Crítico (Apenas Pacotes reais > 1 sessão com 0 ou 1 sessão restante)
+    const lowPackages = visiblePackages.filter(p => 
+      p.status === PackageStatus.ACTIVE && 
+      p.totalSessions > 1 && 
+      p.remainingSessions <= 1
+    );
+    
     if (lowPackages.length > 0) {
-      alerts.push({ type: 'warning', msg: `${lowPackages.length} paciente(s) com saldo crítico no pacote.`, icon: AlertTriangle });
+      const names = lowPackages
+        .map(pkg => visiblePatients.find(p => p.id === pkg.patientId)?.name)
+        .filter(Boolean)
+        .slice(0, 3);
+      
+      const namesList = names.join(', ');
+      const suffix = lowPackages.length > 3 ? ` e outros ${lowPackages.length - 3}` : '';
+      
+      alerts.push({ 
+        type: 'warning', 
+        msg: `Saldos Críticos detectados.`, 
+        details: names.length > 0 ? `Pacientes: ${namesList}${suffix}` : 'Sessões de pacote chegando ao fim.',
+        icon: AlertTriangle,
+        count: lowPackages.length,
+        action: () => setActiveTab('packages'),
+        actionLabel: 'Ver Pacientes'
+      });
     }
+
+    // Alerta de Atendimentos Pendentes (Melhorado com nomes de pacientes)
     const upcomingSesh = visibleSessions.filter(s => s.status === AttendanceStatus.SCHEDULED);
     if (upcomingSesh.length > 0) {
-        alerts.push({ type: 'info', msg: `Você tem ${upcomingSesh.length} atendimentos agendados pendentes de realização.`, icon: Wallet });
+        const pNames = upcomingSesh
+          .map(s => visiblePatients.find(p => p.id === s.patientId)?.name)
+          .filter(Boolean)
+          .slice(0, 3);
+        
+        const namesList = pNames.join(', ');
+        const suffix = upcomingSesh.length > 3 ? ` +${upcomingSesh.length - 3}` : '';
+
+        alerts.push({ 
+          type: 'info', 
+          msg: `Atendimentos agendados pendentes.`, 
+          details: pNames.length > 0 ? `Próximos: ${namesList}${suffix}` : 'Mantenha sua agenda atualizada.',
+          icon: CalendarIcon,
+          count: upcomingSesh.length,
+          action: () => setActiveTab('scheduling'),
+          actionLabel: 'Ir para Agenda'
+        });
     }
+    
     return alerts;
-  }, [visibleSessions, visiblePackages]);
+  }, [visibleSessions, visiblePackages, visiblePatients, setActiveTab]);
 
   const changeDate = (amount: number) => {
     const newDate = new Date(currentDate);
@@ -66,13 +110,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     return days;
   }, [currentDate]);
 
-  // Formata data string ISO (YYYY-MM-DD) para exibição PT-BR sem fuso horário
-  const formatDateStr = (dateStr: string) => {
-    if (!dateStr) return '—';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
-  };
-
   const getSessionsForDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -89,11 +126,52 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
       </header>
 
       {intelligentAlerts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {intelligentAlerts.map((alert, idx) => (
-            <div key={idx} className={`p-4 rounded-2xl flex items-center gap-4 border ${alert.type === 'warning' ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
-              <alert.icon size={18} />
-              <p className="text-xs font-bold">{alert.msg}</p>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {intelligentAlerts.map((alert: any, idx) => (
+            <div 
+              key={idx} 
+              className={`p-6 rounded-[32px] flex items-center justify-between gap-6 border transition-all hover:shadow-xl hover:-translate-y-0.5 ${
+                alert.type === 'warning' 
+                ? 'bg-amber-50 border-amber-100 shadow-sm shadow-amber-100/50' 
+                : 'bg-indigo-50 border-indigo-100 shadow-sm shadow-indigo-100/50'
+              }`}
+            >
+              <div className="flex items-center gap-6 flex-1 min-w-0">
+                {/* Contador de Volume */}
+                <div className={`relative flex items-center justify-center w-16 h-16 rounded-2xl font-black text-2xl shrink-0 ${
+                  alert.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'
+                }`}>
+                  {alert.count}
+                  <div className={`absolute -top-1 -right-1 p-1 rounded-lg border-2 border-white shadow-sm ${
+                    alert.type === 'warning' ? 'bg-amber-500' : 'bg-indigo-500'
+                  }`}>
+                    <alert.icon size={12} className="text-white" />
+                  </div>
+                </div>
+                
+                <div className="space-y-1 min-w-0">
+                  <p className={`text-xs font-black uppercase tracking-widest ${
+                    alert.type === 'warning' ? 'text-amber-800' : 'text-indigo-800'
+                  }`}>{alert.msg}</p>
+                  <p className={`text-[11px] font-bold leading-relaxed truncate ${
+                    alert.type === 'warning' ? 'text-amber-600/80' : 'text-indigo-600/80'
+                  }`}>
+                    {alert.details}
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={alert.action}
+                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 shrink-0 shadow-lg ${
+                  alert.type === 'warning'
+                  ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-amber-200/50'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200/50'
+                }`}
+              >
+                {alert.actionLabel}
+                <ArrowRight size={14} />
+              </button>
             </div>
           ))}
         </div>
