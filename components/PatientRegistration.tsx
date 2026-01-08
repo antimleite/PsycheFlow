@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PatientStatus, Patient, AgeGroup } from '../types';
@@ -393,14 +392,14 @@ const PatientRegistration: React.FC = () => {
                       </span>
                     ) : <span className="text-gray-300 text-[10px]">—</span>}
                   </td>
-                  <td className="px-8 py-5 text-sm text-gray-500">{patient.email}</td>
+                  <td className="px-8 py-5 text-sm font-semibold text-gray-700">{patient.phone}</td>
                   <td className="px-8 py-5 text-sm text-gray-500 text-center">
                     {patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('pt-BR') : '—'}
                   </td>
                   <td className="px-8 py-5">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${
                       patient.status === PatientStatus.ACTIVE ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                      'bg-gray-100 text-gray-500 border-gray-200'
+                      'bg-gray-100 text-gray-400 border-gray-200'
                     }`}>{patient.status}</span>
                   </td>
                   <td className="px-8 py-5 text-right">

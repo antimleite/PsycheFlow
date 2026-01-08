@@ -15,7 +15,8 @@ import {
   CalendarCheck,
   ClipboardList,
   Search,
-  FileDown
+  FileDown,
+  Phone
 } from 'lucide-react';
 
 const Reports: React.FC = () => {
@@ -187,7 +188,7 @@ const Reports: React.FC = () => {
             <thead>
               <tr className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                 <th className="px-8 py-5">Nome</th>
-                <th className="px-8 py-5">E-mail / Telefone</th>
+                <th className="px-8 py-5">Contato / Telefone</th>
                 <th className="px-8 py-5 text-center">Cadastro</th>
                 <th className="px-8 py-5 text-right">Evolução</th>
               </tr>
@@ -196,7 +197,7 @@ const Reports: React.FC = () => {
               {activePatients.map(patient => (
                 <tr key={patient.id} className="hover:bg-indigo-50/30 transition-colors cursor-pointer group" onClick={() => setSelectedPatient(patient)}>
                   <td className="px-8 py-5 font-bold text-gray-900 text-sm">{patient.name}</td>
-                  <td className="px-8 py-5 text-xs text-gray-500">{patient.email} <br/> {patient.phone}</td>
+                  <td className="px-8 py-5 text-sm font-semibold text-gray-700">{patient.phone}</td>
                   <td className="px-8 py-5 text-center text-xs text-gray-500">{formatDateStr(patient.registrationDate)}</td>
                   <td className="px-8 py-5 text-right">
                     <button className="text-gray-300 group-hover:text-indigo-600 transition-colors"><ChevronRight size={20} /></button>
