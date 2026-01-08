@@ -151,19 +151,6 @@ const Packages: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
-                    <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
-                       <div className="flex items-center gap-1.5 text-gray-400">
-                          <CalendarDays size={14} />
-                          <span className="text-[10px] font-bold text-gray-400">Vencimento: {formatDateStr(pkg.expiryDate || '')}</span>
-                       </div>
-                       {stats.scheduledCount > 0 && (
-                         <div className="flex items-center gap-1 text-amber-500 animate-pulse">
-                           <AlertTriangle size={12} />
-                           <span className="text-[9px] font-black uppercase">{stats.scheduledCount} Reservada(s)</span>
-                         </div>
-                       )}
-                    </div>
                   </div>
                 </div>
               );
