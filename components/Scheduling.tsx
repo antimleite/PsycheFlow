@@ -48,32 +48,15 @@ const Scheduling: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Cálculos de crédito em tempo real para o modal
   const avulsoCredits = useMemo(() => {
     if (!patientId) return 0;
-    const patientPkgs = visiblePackages.filter(p => p.patientId === patientId && p.status === PackageStatus.ACTIVE && p.totalSessions === 1);
-    const totalGranted = patientPkgs.reduce((acc, curr) => acc + curr.totalSessions, 0);
-    const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
-    const totalConsumed = visibleSessions.filter(s => 
-      s.patientId === patientId && 
-      consumedStatuses.includes(s.status) && 
-      patientPkgs.some(pkg => pkg.id === s.packageId)
-    ).length;
-    return Math.max(0, totalGranted - totalConsumed);
-  }, [patientId, visiblePackages, visibleSessions]);
+    return getAvailableCredits(patientId, ServiceType.SINGLE);
+  }, [patientId, getAvailableCredits]);
 
   const pacoteCredits = useMemo(() => {
     if (!patientId) return 0;
-    const patientPkgs = visiblePackages.filter(p => p.patientId === patientId && p.status === PackageStatus.ACTIVE && p.totalSessions === 4);
-    const totalGranted = patientPkgs.reduce((acc, curr) => acc + curr.totalSessions, 0);
-    const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
-    const totalConsumed = visibleSessions.filter(s => 
-      s.patientId === patientId && 
-      consumedStatuses.includes(s.status) && 
-      patientPkgs.some(pkg => pkg.id === s.packageId)
-    ).length;
-    return Math.max(0, totalGranted - totalConsumed);
-  }, [patientId, visiblePackages, visibleSessions]);
+    return getAvailableCredits(patientId, ServiceType.PACKAGE);
+  }, [patientId, getAvailableCredits]);
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -125,26 +108,18 @@ const Scheduling: React.FC = () => {
       return;
     }
 
-    if (editingSession) {
-      await rescheduleSession(editingSession.id, { date: slots[0].date, time: slots[0].time, notes });
-      setShowModal(false);
-      resetForm();
-      return;
-    }
-
-    // Validação de saldo baseada no tipo selecionado
     const currentSaldo = serviceType === ServiceType.SINGLE ? avulsoCredits : pacoteCredits;
     if (currentSaldo < slots.length) {
-      setErrorMessage(`Saldo insuficiente para o tipo selecionado (${serviceType}). Disponível: ${currentSaldo}`);
+      setErrorMessage(`Saldo insuficiente para o tipo selecionado. Disponível: ${currentSaldo}`);
       return;
     }
 
-    // Busca o pacote correto para associar (o primeiro que tiver saldo)
+    // LÓGICA DE VÍNCULO: Identifica o pacote no banco para descontar corretamente
     const relevantPkgs = visiblePackages.filter(pkg => 
       pkg.patientId === patientId && 
       pkg.status === PackageStatus.ACTIVE && 
-      (serviceType === ServiceType.PACKAGE ? pkg.totalSessions === 4 : pkg.totalSessions === 1)
-    );
+      (serviceType === ServiceType.PACKAGE ? pkg.totalSessions > 1 : pkg.totalSessions === 1)
+    ).sort((a, b) => (a.expiryDate || '').localeCompare(b.expiryDate || ''));
     
     let packageIdToUse: string | undefined;
     for (const pkg of relevantPkgs) {
@@ -206,8 +181,6 @@ const Scheduling: React.FC = () => {
 
   const confirmCancellation = async () => {
     if (!sessionToCancel) return;
-    // Ao atualizar para CANCELLED, as funções de cálculo de saldo (getAvailableCredits) 
-    // deixarão de contar esta sessão como consumida, liberando o crédito.
     await updateSession({ ...sessionToCancel, status: AttendanceStatus.CANCELLED });
     setSessionToCancel(null);
   };
@@ -238,7 +211,7 @@ const Scheduling: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestão da Agenda</h2>
-          <p className="text-gray-500">Controle seus atendimentos e horários de forma centralizada.</p>
+          <p className="text-gray-500">Identificadores visuais para Avulsos e Pacotes.</p>
         </div>
         <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-indigo-700 shadow-md transition-all active:scale-95">
           <Plus size={19} /> Novo Agendamento
@@ -248,15 +221,15 @@ const Scheduling: React.FC = () => {
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-visible">
         <div className="p-6 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50">
           <div className="flex items-center gap-4">
-             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
+             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
                 <option value="">Todos os Pacientes</option>
                 {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
              </select>
-             <input type="date" className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+             <input type="date" className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Ordenar:</span>
-            <button onClick={() => { setSortBy('datetime'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'datetime' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 border'}`}>Data/Hora</button>
+            <button onClick={() => { setSortBy('datetime'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'datetime' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-500 border'}`}>Data/Hora</button>
           </div>
         </div>
 
@@ -264,7 +237,7 @@ const Scheduling: React.FC = () => {
           <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
             <tr>
               <th className="px-6 py-4">Paciente</th>
-              <th className="px-6 py-4">Tipo</th>
+              <th className="px-6 py-4 text-center">Tipo / Identificador</th>
               <th className="px-6 py-4 text-center">Data / Hora</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Ações</th>
@@ -280,9 +253,19 @@ const Scheduling: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                   <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${session.packageId ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                    {session.packageId ? 'Pacote' : 'Avulso'}
-                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    {session.serviceType === ServiceType.PACKAGE || session.packageId ? (
+                      <div className="flex items-center gap-2 bg-purple-50 text-purple-600 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm">
+                        <Package size={14} className="animate-in zoom-in duration-300" />
+                        <span className="text-[10px] font-black uppercase tracking-tighter">Pacote</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1.5 rounded-xl shadow-sm">
+                        <Zap size={14} className="animate-in zoom-in duration-300" />
+                        <span className="text-[10px] font-black uppercase tracking-tighter">Avulso</span>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 text-center">
                   <div className="text-xs font-bold text-gray-700">{formatDateDisplay(session.date)}</div>
@@ -291,6 +274,7 @@ const Scheduling: React.FC = () => {
                 <td className="px-6 py-4">
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
                     session.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                    session.status === AttendanceStatus.ABSENT_WITHOUT_NOTICE ? 'bg-rose-50 text-rose-600 border-rose-100' :
                     session.status === AttendanceStatus.RESCHEDULED ? 'bg-amber-50 text-amber-600 border-amber-100' :
                     session.status === AttendanceStatus.CANCELLED ? 'bg-gray-100 text-gray-400 border-gray-200' :
                     'bg-blue-50 text-blue-600 border-blue-100'

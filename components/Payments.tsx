@@ -5,7 +5,7 @@ import { PaymentStatus, PaymentMethod, ServiceType, Payment, SessionPackage, Pac
 import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2 } from 'lucide-react';
 
 const Payments: React.FC = () => {
-  const { visiblePayments, visiblePatients, addPayment, updatePayment, addPackage, setActiveTab, setPreSelectedPatientId } = useApp();
+  const { visiblePayments, visiblePatients, addPayment, updatePayment, addPackage, setActiveTab, setPreSelectedPatientId, visiblePackages } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -13,7 +13,6 @@ const Payments: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Filtros
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [filterService, setFilterService] = useState<string>('Todos');
   const [filterPatient, setFilterPatient] = useState<string>('Todos');
@@ -38,34 +37,67 @@ const Payments: React.FC = () => {
     const targetPatientId = formData.patientId;
 
     try {
+      let savedPayment: Payment | null = null;
+
       if (editingPayment) {
-        await updatePayment({ ...editingPayment, patientId: targetPatientId, amount: amountValue, date: formData.date, status: formData.status, method: formData.method, serviceType: formData.serviceType });
+        const statusChangedToPaid = editingPayment.status !== PaymentStatus.PAID && formData.status === PaymentStatus.PAID;
+        const alreadyHasPackage = visiblePackages.some(pkg => pkg.paymentId === editingPayment.id);
+
+        await updatePayment({ 
+          ...editingPayment, 
+          patientId: targetPatientId, 
+          amount: amountValue, 
+          date: formData.date, 
+          status: formData.status, 
+          method: formData.method, 
+          serviceType: formData.serviceType 
+        });
+
+        if (statusChangedToPaid && !alreadyHasPackage) {
+           await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
+        }
       } else {
-        const newPayment = await addPayment({ patientId: targetPatientId, amount: amountValue, date: formData.date, status: formData.status, method: formData.method, serviceType: formData.serviceType });
+        savedPayment = await addPayment({ 
+          patientId: targetPatientId, 
+          amount: amountValue, 
+          date: formData.date, 
+          status: formData.status, 
+          method: formData.method, 
+          serviceType: formData.serviceType 
+        });
         
-        // Regra solicitada: Atendimento Avulso gera 1 crédito, Pacote gera 4 créditos
-        if (newPayment && formData.status === PaymentStatus.PAID) {
-          const sessionsToGrant = formData.serviceType === ServiceType.PACKAGE ? 4 : 1;
-          const expiry = new Date();
-          expiry.setMonth(expiry.getMonth() + 3);
-          
-          await addPackage({ 
-            patientId: targetPatientId, 
-            totalSessions: sessionsToGrant, 
-            usedSessions: 0, 
-            remainingSessions: sessionsToGrant, 
-            expiryDate: expiry.toISOString().split('T')[0], 
-            status: PackageStatus.ACTIVE, 
-            paymentId: newPayment.id 
-          });
+        if (savedPayment && formData.status === PaymentStatus.PAID) {
+          await generateCreditsInDB(targetPatientId, formData.serviceType, savedPayment.id);
         }
       }
+
       setShowForm(false);
       resetFormData();
-      if (!editingPayment) { setLastSavedPatientId(targetPatientId); setShowSuccessDialog(true); }
+      if (!editingPayment) { 
+        setLastSavedPatientId(targetPatientId); 
+        setShowSuccessDialog(true); 
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "Erro ao salvar.");
-    } finally { setIsSaving(false); }
+    } finally { 
+      setIsSaving(false); 
+    }
+  };
+
+  const generateCreditsInDB = async (patientId: string, type: ServiceType, paymentId: string) => {
+    const sessionsCount = type === ServiceType.PACKAGE ? 4 : 1;
+    const expiry = new Date();
+    expiry.setMonth(expiry.getMonth() + 4); 
+    
+    await addPackage({ 
+      patientId, 
+      totalSessions: sessionsCount, 
+      usedSessions: 0, 
+      remainingSessions: sessionsCount, 
+      expiryDate: expiry.toISOString().split('T')[0], 
+      status: PackageStatus.ACTIVE, 
+      paymentId: paymentId 
+    });
   };
 
   const resetFormData = () => {
@@ -210,10 +242,10 @@ const Payments: React.FC = () => {
 
       {showSuccessDialog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[32px] shadow-2xl max-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
             <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle size={48} /></div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Concluído</h3>
-            <p className="text-gray-500 text-sm mb-8 leading-relaxed">Pagamento registrado. Deseja agendar a sessão para este paciente agora?</p>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed">Pagamento registrado e crédito gerado com sucesso no sistema. Deseja agendar a sessão agora?</p>
             <div className="flex flex-col gap-3">
               <button onClick={() => { setPreSelectedPatientId(lastSavedPatientId); setActiveTab('scheduling'); setShowSuccessDialog(false); }} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2"><Calendar size={18} /> Ir para Agendamento</button>
               <button onClick={() => setShowSuccessDialog(false)} className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition-all">Agora não</button>
