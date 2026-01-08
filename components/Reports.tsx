@@ -88,6 +88,10 @@ const Reports: React.FC = () => {
             .info-label { font-weight: 700; color: #64748b; width: 120px; display: inline-block; }
             .actions { margin-bottom: 30px; text-align: center; }
             .btn-print { background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+            .signature-block { margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 30px; text-align: center; }
+            .signature-name { margin: 0; font-size: 15px; font-weight: 800; color: #1e293b; }
+            .signature-specialty { margin: 2px 0; font-size: 12px; font-weight: 600; color: #64748b; }
+            .signature-reg { margin: 0; font-size: 12px; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.05em; }
             @media print { .actions { display: none; } body { padding: 0; } }
           </style>
         </head>
@@ -109,6 +113,16 @@ const Reports: React.FC = () => {
             <div class="stat-card"><div class="stat-label">Engajamento</div><div class="stat-value">${engagement}%</div></div>
           </div>
           <div class="history">${historyRows}</div>
+          
+          <div class="signature-block">
+            <p class="signature-name">${activeProfissional?.nomeCompleto || '—'}</p>
+            <p class="signature-specialty">${activeProfissional?.especialidade || 'Psicólogo(a)'}</p>
+            <p class="signature-reg">${activeProfissional?.registroProfissional || '—'}</p>
+          </div>
+
+          <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #cbd5e1; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+            Documento gerado eletronicamente via PsycheFlow Manager
+          </div>
         </body>
       </html>
     `;
