@@ -148,8 +148,8 @@ const Scheduling: React.FC = () => {
     
     let packageIdToUse: string | undefined;
     for (const pkg of relevantPkgs) {
-      const consumed = visibleSessions.filter(s => s.packageId === pkg.id && [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED].includes(s.status)).length;
-      if (consumed < pkg.totalSessions) {
+      const consumedCount = visibleSessions.filter(s => s.packageId === pkg.id && [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED].includes(s.status)).length;
+      if (consumedCount < pkg.totalSessions) {
         packageIdToUse = pkg.id;
         break;
       }
@@ -206,6 +206,8 @@ const Scheduling: React.FC = () => {
 
   const confirmCancellation = async () => {
     if (!sessionToCancel) return;
+    // Ao atualizar para CANCELLED, as funções de cálculo de saldo (getAvailableCredits) 
+    // deixarão de contar esta sessão como consumida, liberando o crédito.
     await updateSession({ ...sessionToCancel, status: AttendanceStatus.CANCELLED });
     setSessionToCancel(null);
   };

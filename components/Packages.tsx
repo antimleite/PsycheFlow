@@ -14,32 +14,42 @@ const Packages: React.FC = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const getPackageStats = (packageId: string, totalSessions: number) => {
+    const seshs = visibleSessions.filter(s => s.packageId === packageId);
+    // Consideramos como "consumido" ou "reservado" sessões Realizadas, Faltas sem Aviso e Agendadas (futuras)
+    const usedCount = seshs.filter(s => 
+      [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED].includes(s.status)
+    ).length;
+    
+    const consumed = seshs.filter(s => [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE].includes(s.status));
+    const scheduled = seshs.filter(s => s.status === AttendanceStatus.SCHEDULED);
+
+    return {
+      usedCount,
+      remainingCount: Math.max(0, totalSessions - usedCount),
+      progress: (usedCount / totalSessions) * 100,
+      dates: consumed.map(s => formatDateStr(s.date)).join(', '),
+      scheduledCount: scheduled.length
+    };
+  };
+
   const activePackages = useMemo(() => {
     return visiblePackages.filter(pkg => {
       const patient = visiblePatients.find(p => p.id === pkg.patientId);
       const matchesSearch = patient?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return pkg.usedSessions < pkg.totalSessions && matchesSearch;
+      const stats = getPackageStats(pkg.id, pkg.totalSessions);
+      return stats.remainingCount > 0 && matchesSearch;
     });
-  }, [visiblePackages, visiblePatients, searchTerm]);
+  }, [visiblePackages, visiblePatients, searchTerm, visibleSessions]);
 
   const finishedPackages = useMemo(() => {
     return visiblePackages.filter(pkg => {
       const patient = visiblePatients.find(p => p.id === pkg.patientId);
       const matchesSearch = patient?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return pkg.usedSessions >= pkg.totalSessions && matchesSearch;
+      const stats = getPackageStats(pkg.id, pkg.totalSessions);
+      return stats.remainingCount <= 0 && matchesSearch;
     }).sort((a, b) => (b.expiryDate || '').localeCompare(a.expiryDate || ''));
-  }, [visiblePackages, visiblePatients, searchTerm]);
-
-  const getConsumptionDetails = (packageId: string) => {
-    const seshs = visibleSessions.filter(s => s.packageId === packageId);
-    const consumed = seshs.filter(s => [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE].includes(s.status));
-    const scheduled = seshs.filter(s => s.status === AttendanceStatus.SCHEDULED);
-    
-    return {
-      dates: consumed.map(s => formatDateStr(s.date)).join(', '),
-      scheduledCount: scheduled.length
-    };
-  };
+  }, [visiblePackages, visiblePatients, searchTerm, visibleSessions]);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
@@ -68,8 +78,7 @@ const Packages: React.FC = () => {
           {activePackages.length > 0 ? (
             activePackages.map((pkg) => {
               const patient = visiblePatients.find(p => p.id === pkg.patientId);
-              const progress = (pkg.usedSessions / pkg.totalSessions) * 100;
-              const details = getConsumptionDetails(pkg.id);
+              const stats = getPackageStats(pkg.id, pkg.totalSessions);
               const isSingle = pkg.totalSessions === 1;
 
               return (
@@ -92,21 +101,21 @@ const Packages: React.FC = () => {
 
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs font-black uppercase tracking-widest">
-                        <span className="text-gray-400">Progresso</span>
-                        <span className="text-indigo-600">{pkg.usedSessions} / {pkg.totalSessions}</span>
+                        <span className="text-gray-400">Uso (Incl. Agendadas)</span>
+                        <span className="text-indigo-600">{stats.usedCount} / {pkg.totalSessions}</span>
                       </div>
                       <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full transition-all duration-700 ease-out ${isSingle ? 'bg-amber-500' : 'bg-indigo-600'}`} style={{ width: `${progress}%` }}></div>
+                        <div className={`h-full transition-all duration-700 ease-out ${isSingle ? 'bg-amber-500' : 'bg-indigo-600'}`} style={{ width: `${stats.progress}%` }}></div>
                       </div>
-                      {details.scheduledCount > 0 && (
-                        <p className="text-[9px] font-bold text-amber-500 flex items-center gap-1"><AlertTriangle size={10}/> {details.scheduledCount} agendada(s) (não deduzida)</p>
+                      {stats.scheduledCount > 0 && (
+                        <p className="text-[9px] font-bold text-amber-500 flex items-center gap-1"><AlertTriangle size={10}/> {stats.scheduledCount} agendada(s) reservando saldo</p>
                       )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-center">
-                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Saldo</p>
-                        <p className={`text-2xl font-black ${isSingle ? 'text-amber-600' : 'text-indigo-600'}`}>{pkg.remainingSessions}</p>
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Saldo Livre</p>
+                        <p className={`text-2xl font-black ${isSingle ? 'text-amber-600' : 'text-indigo-600'}`}>{stats.remainingCount}</p>
                       </div>
                       <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 text-center flex flex-col justify-center">
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Vencimento</p>
@@ -114,10 +123,10 @@ const Packages: React.FC = () => {
                       </div>
                     </div>
 
-                    {details.dates && (
+                    {stats.dates && (
                       <div className="pt-4 border-t border-gray-50">
                         <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Histórico de Uso:</p>
-                        <p className="text-[10px] text-gray-500 italic truncate">{details.dates}</p>
+                        <p className="text-[10px] text-gray-500 italic truncate">{stats.dates}</p>
                       </div>
                     )}
                   </div>
