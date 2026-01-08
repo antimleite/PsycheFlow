@@ -177,15 +177,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getAvailableCredits = useCallback((patientId: string, type: ServiceType): number => {
     if (!activeProfissional) return 0;
     const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
-    if (type === ServiceType.PACKAGE) {
-      const activePkg = visiblePackages.find(pkg => pkg.patientId === patientId && pkg.status === PackageStatus.ACTIVE);
-      if (!activePkg) return 0;
-      const consumedBySessions = visibleSessions.filter(s => s.packageId === activePkg.id && consumedStatuses.includes(s.status)).length;
-      return Math.max(0, activePkg.totalSessions - consumedBySessions);
+    
+    // Agora unificamos a busca de créditos: olhamos para todos os "packages" ativos do paciente (que podem ser créditos de 1 ou 4 sessões)
+    const activeCredits = visiblePackages.filter(pkg => pkg.patientId === patientId && pkg.status === PackageStatus.ACTIVE);
+    
+    if (activeCredits.length > 0) {
+      let totalGranted = activeCredits.reduce((acc, curr) => acc + curr.totalSessions, 0);
+      // Contamos todas as sessões que já consumiram ou reservaram crédito de um pacote/pagamento
+      let totalConsumed = visibleSessions.filter(s => s.patientId === patientId && s.packageId && consumedStatuses.includes(s.status)).length;
+      
+      const remainingFromPackages = Math.max(0, totalGranted - totalConsumed);
+      
+      // Se for ServiceType.SINGLE, também permitimos usar pagamentos avulsos que ainda não geraram um "package" (retrocompatibilidade)
+      if (type === ServiceType.SINGLE) {
+        const paidPaymentsWithoutPackage = visiblePayments.filter(p => 
+          p.patientId === patientId && 
+          p.serviceType === ServiceType.SINGLE && 
+          p.status === PaymentStatus.PAID &&
+          !visiblePackages.some(pkg => pkg.paymentId === p.id)
+        ).length;
+        
+        const consumedWithoutPackage = visibleSessions.filter(s => 
+          s.patientId === patientId && 
+          s.serviceType === ServiceType.SINGLE && 
+          !s.packageId &&
+          consumedStatuses.includes(s.status)
+        ).length;
+        
+        return remainingFromPackages + Math.max(0, paidPaymentsWithoutPackage - consumedWithoutPackage);
+      }
+      
+      return remainingFromPackages;
     } else {
-      const paidCredits = visiblePayments.filter(p => p.patientId === patientId && p.serviceType === ServiceType.SINGLE && p.status === PaymentStatus.PAID).length;
-      const consumedCredits = visibleSessions.filter(s => s.patientId === patientId && s.serviceType === ServiceType.SINGLE && consumedStatuses.includes(s.status)).length;
-      return Math.max(0, paidCredits - consumedCredits);
+      // Fallback para quando não há pacotes explícitos registrados
+      if (type === ServiceType.SINGLE) {
+        const paidCredits = visiblePayments.filter(p => p.patientId === patientId && p.serviceType === ServiceType.SINGLE && p.status === PaymentStatus.PAID).length;
+        const consumedCredits = visibleSessions.filter(s => s.patientId === patientId && s.serviceType === ServiceType.SINGLE && consumedStatuses.includes(s.status)).length;
+        return Math.max(0, paidCredits - consumedCredits);
+      }
+      return 0;
     }
   }, [activeProfissional, visiblePackages, visiblePayments, visibleSessions]);
 
@@ -227,29 +257,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = useCallback(async () => {
     setLoading(true);
     try {
-      // Tenta sair via API do Supabase
       if (supabase && supabase.auth) {
         await supabase.auth.signOut();
       }
     } catch (e) {
       console.error("Erro durante logout de rede:", e);
     } finally {
-      // Limpeza manual forçada do localStorage para evitar auto-login imediato
-      // O Supabase utiliza o padrão: sb-{project-id}-auth-token
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (key.includes('supabase.auth.token') || key.includes('sb-'))) {
           localStorage.removeItem(key);
         }
       }
-      
-      // Reset de estado local
       setCurrentUser(null);
       setAuthenticated(false);
       setActiveProfissional(null);
       setLoading(false);
-      
-      // Redirecionamento limpo para a raiz
       window.location.replace('/');
     }
   }, []);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2 } from 'lucide-react';
 import { AttendanceStatus, Session, ServiceType, PackageStatus } from '../types';
 
 type SortField = 'datetime' | 'status' | 'type';
@@ -48,6 +48,33 @@ const Scheduling: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Cálculos de crédito em tempo real para o modal
+  const avulsoCredits = useMemo(() => {
+    if (!patientId) return 0;
+    const patientPkgs = visiblePackages.filter(p => p.patientId === patientId && p.status === PackageStatus.ACTIVE && p.totalSessions === 1);
+    const totalGranted = patientPkgs.reduce((acc, curr) => acc + curr.totalSessions, 0);
+    const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
+    const totalConsumed = visibleSessions.filter(s => 
+      s.patientId === patientId && 
+      consumedStatuses.includes(s.status) && 
+      patientPkgs.some(pkg => pkg.id === s.packageId)
+    ).length;
+    return Math.max(0, totalGranted - totalConsumed);
+  }, [patientId, visiblePackages, visibleSessions]);
+
+  const pacoteCredits = useMemo(() => {
+    if (!patientId) return 0;
+    const patientPkgs = visiblePackages.filter(p => p.patientId === patientId && p.status === PackageStatus.ACTIVE && p.totalSessions === 4);
+    const totalGranted = patientPkgs.reduce((acc, curr) => acc + curr.totalSessions, 0);
+    const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
+    const totalConsumed = visibleSessions.filter(s => 
+      s.patientId === patientId && 
+      consumedStatuses.includes(s.status) && 
+      patientPkgs.some(pkg => pkg.id === s.packageId)
+    ).length;
+    return Math.max(0, totalGranted - totalConsumed);
+  }, [patientId, visiblePackages, visibleSessions]);
+
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '—';
     const [year, month, day] = dateStr.split('-');
@@ -87,7 +114,6 @@ const Scheduling: React.FC = () => {
     }
 
     if (isEditMode && editingSession) {
-      // Alteração direta do registro existente (Data e Hora)
       await updateSession({ 
         ...editingSession, 
         date: slots[0].date, 
@@ -100,21 +126,35 @@ const Scheduling: React.FC = () => {
     }
 
     if (editingSession) {
-      // Fluxo de Reagendamento (Cria rastro de 'Reagendado')
       await rescheduleSession(editingSession.id, { date: slots[0].date, time: slots[0].time, notes });
       setShowModal(false);
       resetForm();
       return;
     }
 
-    // Fluxo de Novo Agendamento
-    const availableCredits = getAvailableCredits(patientId, serviceType);
-    if (availableCredits < slots.length) {
-      setErrorMessage(`Paciente sem saldo suficiente para agendar. Saldo atual: ${availableCredits}`);
+    // Validação de saldo baseada no tipo selecionado
+    const currentSaldo = serviceType === ServiceType.SINGLE ? avulsoCredits : pacoteCredits;
+    if (currentSaldo < slots.length) {
+      setErrorMessage(`Saldo insuficiente para o tipo selecionado (${serviceType}). Disponível: ${currentSaldo}`);
       return;
     }
 
-    const activePkg = visiblePackages.find(pkg => pkg.patientId === patientId && pkg.status === PackageStatus.ACTIVE);
+    // Busca o pacote correto para associar (o primeiro que tiver saldo)
+    const relevantPkgs = visiblePackages.filter(pkg => 
+      pkg.patientId === patientId && 
+      pkg.status === PackageStatus.ACTIVE && 
+      (serviceType === ServiceType.PACKAGE ? pkg.totalSessions === 4 : pkg.totalSessions === 1)
+    );
+    
+    let packageIdToUse: string | undefined;
+    for (const pkg of relevantPkgs) {
+      const consumed = visibleSessions.filter(s => s.packageId === pkg.id && [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED].includes(s.status)).length;
+      if (consumed < pkg.totalSessions) {
+        packageIdToUse = pkg.id;
+        break;
+      }
+    }
+
     const sessionPromises = slots.map((slot, index) => {
       return addSession({
         patientId,
@@ -122,9 +162,9 @@ const Scheduling: React.FC = () => {
         time: slot.time,
         duration: 50,
         status: AttendanceStatus.SCHEDULED,
-        notes: notes || (serviceType === ServiceType.PACKAGE ? `Sessão ${index + 1}` : 'Atendimento Avulso'),
+        notes: notes || (serviceType === ServiceType.PACKAGE ? `Sessão ${index + 1} do pacote` : 'Atendimento Avulso'),
         serviceType,
-        packageId: serviceType === ServiceType.PACKAGE ? activePkg?.id : undefined,
+        packageId: packageIdToUse,
       });
     });
     
@@ -162,6 +202,12 @@ const Scheduling: React.FC = () => {
       updateSession({ ...session, status: newStatus });
     }
     setMenuOpenSessionId(null);
+  };
+
+  const confirmCancellation = async () => {
+    if (!sessionToCancel) return;
+    await updateSession({ ...sessionToCancel, status: AttendanceStatus.CANCELLED });
+    setSessionToCancel(null);
   };
 
   const resetForm = () => {
@@ -272,7 +318,7 @@ const Scheduling: React.FC = () => {
           <div className="bg-white rounded-[32px] shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
              <div className="flex justify-between items-center mb-8">
                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Clock className="text-indigo-600" />{isEditMode ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
-               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+               <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100 p-1"><X size={20} /></button>
              </div>
              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
@@ -282,33 +328,99 @@ const Scheduling: React.FC = () => {
                       {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                    </select>
                 </div>
-                {!isEditMode && !editingSession && (
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tipo</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {Object.values(ServiceType).map(t => (
-                        <button key={t} type="button" onClick={() => handleServiceTypeChange(t)} className={`px-4 py-3 rounded-2xl border text-xs font-bold transition-all ${serviceType === t ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-200 text-gray-400'}`}>{t}</button>
-                      ))}
+
+                {patientId && !isEditMode && !editingSession && (
+                  <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50 flex items-center justify-around animate-in fade-in duration-300">
+                    <div className="text-center">
+                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Créditos Avulsos</span>
+                      <span className={`text-lg font-black ${avulsoCredits > 0 ? 'text-indigo-700' : 'text-indigo-300'}`}>{avulsoCredits}</span>
+                    </div>
+                    <div className="w-px h-8 bg-indigo-100"></div>
+                    <div className="text-center">
+                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Sessões de Pacote</span>
+                      <span className={`text-lg font-black ${pacoteCredits > 0 ? 'text-indigo-700' : 'text-indigo-300'}`}>{pacoteCredits}</span>
                     </div>
                   </div>
                 )}
+
+                {!isEditMode && !editingSession && (
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tipo de Agendamento</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        key={ServiceType.SINGLE} 
+                        type="button" 
+                        onClick={() => handleServiceTypeChange(ServiceType.SINGLE)} 
+                        className={`relative px-4 py-4 rounded-2xl border text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${serviceType === ServiceType.SINGLE ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg' : 'border-gray-200 text-gray-400 hover:border-indigo-200'}`}
+                      >
+                        <Zap size={14} className={serviceType === ServiceType.SINGLE ? 'text-white' : 'text-indigo-200'} />
+                        Avulso
+                        {avulsoCredits > 0 && <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-sm ${serviceType === ServiceType.SINGLE ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>{avulsoCredits}</span>}
+                      </button>
+
+                      <button 
+                        key={ServiceType.PACKAGE} 
+                        type="button" 
+                        onClick={() => handleServiceTypeChange(ServiceType.PACKAGE)} 
+                        className={`relative px-4 py-4 rounded-2xl border text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${serviceType === ServiceType.PACKAGE ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg' : 'border-gray-200 text-gray-400 hover:border-indigo-200'}`}
+                      >
+                        <Package size={14} className={serviceType === ServiceType.PACKAGE ? 'text-white' : 'text-indigo-200'} />
+                        Pacote
+                        {pacoteCredits > 0 && <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-sm ${serviceType === ServiceType.PACKAGE ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>{pacoteCredits}</span>}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Data e Horário</label>
-                  {slots.map((slot, index) => (
-                    <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                       <input type="date" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.date} onChange={e => updateSlot(index, 'date', e.target.value)} />
-                       <input type="time" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.time} onChange={e => updateSlot(index, 'time', e.target.value)} />
-                    </div>
-                  ))}
+                  <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
+                    {slots.map((slot, index) => (
+                      <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:bg-gray-100/50">
+                         <input type="date" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.date} onChange={e => updateSlot(index, 'date', e.target.value)} />
+                         <input type="time" required className="w-full px-3 py-2 rounded-xl border border-transparent focus:bg-white focus:border-indigo-200 outline-none text-sm font-bold" value={slot.time} onChange={e => updateSlot(index, 'time', e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                {errorMessage && <p className="text-xs font-bold text-rose-500 bg-rose-50 p-3 rounded-xl border border-rose-100 flex items-center gap-2"><AlertCircle size={14} /> {errorMessage}</p>}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-50">
-                   <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 font-bold text-gray-400">Cancelar</button>
-                   <button type="submit" className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl transition-all">
-                     {isEditMode ? 'Salvar Alterações' : (editingSession ? 'Reagendar' : 'Agendar')}
+
+                {errorMessage && <p className="text-xs font-bold text-rose-500 bg-rose-50 p-4 rounded-2xl border border-rose-100 flex items-center gap-2 animate-in shake duration-300"><AlertCircle size={14} /> {errorMessage}</p>}
+                
+                <div className="flex justify-end gap-3 pt-6 border-t border-gray-50">
+                   <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600">Cancelar</button>
+                   <button type="submit" className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.98]">
+                     {isEditMode ? 'Salvar Alterações' : (editingSession ? 'Reagendar' : 'Agendar Sessão')}
                    </button>
                 </div>
              </form>
+          </div>
+        </div>
+      )}
+
+      {sessionToCancel && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertOctagon size={48} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirmar Cancelamento</h3>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+              Tem certeza que deseja cancelar este agendamento? Esta ação <strong>liberará o crédito</strong> para o paciente e pode implicar em devolução de valores pagos.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmCancellation}
+                className="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold hover:bg-rose-700 shadow-lg flex items-center justify-center gap-2 transition-all"
+              >
+                <Trash2 size={18} /> Sim, cancelar
+              </button>
+              <button 
+                onClick={() => setSessionToCancel(null)}
+                className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition-all"
+              >
+                Manter Agendamento
+              </button>
+            </div>
           </div>
         </div>
       )}

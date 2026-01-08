@@ -42,10 +42,22 @@ const Payments: React.FC = () => {
         await updatePayment({ ...editingPayment, patientId: targetPatientId, amount: amountValue, date: formData.date, status: formData.status, method: formData.method, serviceType: formData.serviceType });
       } else {
         const newPayment = await addPayment({ patientId: targetPatientId, amount: amountValue, date: formData.date, status: formData.status, method: formData.method, serviceType: formData.serviceType });
-        if (formData.serviceType === ServiceType.PACKAGE && newPayment && formData.status === PaymentStatus.PAID) {
+        
+        // Regra solicitada: Atendimento Avulso gera 1 crédito, Pacote gera 4 créditos
+        if (newPayment && formData.status === PaymentStatus.PAID) {
+          const sessionsToGrant = formData.serviceType === ServiceType.PACKAGE ? 4 : 1;
           const expiry = new Date();
           expiry.setMonth(expiry.getMonth() + 3);
-          await addPackage({ patientId: targetPatientId, totalSessions: 4, usedSessions: 0, remainingSessions: 4, expiryDate: expiry.toISOString().split('T')[0], status: PackageStatus.ACTIVE, paymentId: newPayment.id });
+          
+          await addPackage({ 
+            patientId: targetPatientId, 
+            totalSessions: sessionsToGrant, 
+            usedSessions: 0, 
+            remainingSessions: sessionsToGrant, 
+            expiryDate: expiry.toISOString().split('T')[0], 
+            status: PackageStatus.ACTIVE, 
+            paymentId: newPayment.id 
+          });
         }
       }
       setShowForm(false);
