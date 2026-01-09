@@ -10,7 +10,8 @@ import {
   Package,
   ShieldCheck,
   Replace,
-  Stethoscope
+  Stethoscope,
+  CircleDollarSign
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
@@ -43,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'payments', label: 'Pagamentos', icon: CreditCard },
     { id: 'packages', label: 'Pacotes', icon: Package },
     { id: 'reports', label: 'Rel. de atendimentos', icon: BarChart3 },
+    { id: 'financialReport', label: 'Rel. Financeiro', icon: CircleDollarSign },
   ];
 
   if (currentUser?.role === UserRole.ADMIN) {

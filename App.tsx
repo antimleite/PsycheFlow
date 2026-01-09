@@ -6,6 +6,7 @@ import PatientRegistration from './components/PatientRegistration';
 import Scheduling from './components/Scheduling';
 import Payments from './components/Payments';
 import Reports from './components/Reports';
+import FinancialReport from './components/FinancialReport';
 import Packages from './components/Packages';
 import Users from './components/Users';
 import Profissionais from './components/Profissionais';
@@ -282,6 +283,7 @@ const AppContent: React.FC = () => {
       case 'payments': return <Payments />;
       case 'packages': return <Packages />;
       case 'reports': return <Reports />;
+      case 'financialReport': return <FinancialReport />;
       case 'users': return <Users />;
       case 'profissionais': return <Profissionais />;
       default: return <Dashboard setActiveTab={setActiveTab} />;
