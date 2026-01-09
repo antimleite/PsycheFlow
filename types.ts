@@ -1,6 +1,7 @@
 
 export enum AttendanceStatus {
   SCHEDULED = 'Agendada',
+  CONFIRMED = 'Confirmada',
   COMPLETED = 'Realizada',
   ABSENT = 'Falta',
   ABSENT_WITHOUT_NOTICE = 'Falta s/ Aviso',

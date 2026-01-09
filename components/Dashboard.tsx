@@ -55,7 +55,10 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     }
 
     // Alerta de Atendimentos Pendentes (Melhorado com nomes de pacientes)
-    const upcomingSesh = visibleSessions.filter(s => s.status === AttendanceStatus.SCHEDULED);
+    // Inclui agendamentos agendados E confirmados
+    const upcomingSesh = visibleSessions.filter(s => 
+      s.status === AttendanceStatus.SCHEDULED || s.status === AttendanceStatus.CONFIRMED
+    );
     if (upcomingSesh.length > 0) {
         const pNames = upcomingSesh
           .map(s => visiblePatients.find(p => p.id === s.patientId)?.name)
@@ -216,7 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                       <span className={`text-xs font-bold ${day.toDateString() === new Date().toDateString() ? 'bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-gray-400'}`}>{day.getDate()}</span>
                       <div className="mt-2 space-y-1">
                         {getSessionsForDate(day).map(s => (
-                          <div key={s.id} className={`px-2 py-0.5 rounded text-[9px] font-bold truncate ${s.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                          <div key={s.id} className={`px-2 py-0.5 rounded text-[9px] font-bold truncate ${s.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' : s.status === AttendanceStatus.CONFIRMED ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
                             {s.time} - {visiblePatients.find(p => p.id === s.patientId)?.name}
                           </div>
                         ))}
@@ -239,7 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   <div className="flex-1 space-y-2">
                     {getSessionsForDate(day).map(s => (
                       <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                        <p className="text-[10px] font-black text-indigo-500 mb-1">{s.time}</p>
+                        <p className={`text-[10px] font-black mb-1 ${s.status === AttendanceStatus.CONFIRMED ? 'text-orange-500' : 'text-indigo-500'}`}>{s.time}</p>
                         <p className="text-xs font-bold text-gray-900 truncate">{visiblePatients.find(p => p.id === s.patientId)?.name}</p>
                       </div>
                     ))}
@@ -258,14 +261,14 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 {getSessionsForDate(currentDate).length > 0 ? getSessionsForDate(currentDate).map(s => (
                   <div key={s.id} className="p-6 flex items-center gap-6 hover:bg-gray-50 transition-colors">
                     <div className="text-center">
-                      <p className="text-lg font-black text-indigo-600">{s.time}</p>
+                      <p className={`text-lg font-black ${s.status === AttendanceStatus.CONFIRMED ? 'text-orange-600' : 'text-indigo-600'}`}>{s.time}</p>
                       <p className="text-[9px] font-black text-gray-400 uppercase">{s.duration}m</p>
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-gray-900">{visiblePatients.find(p => p.id === s.patientId)?.name}</p>
                       <p className="text-xs text-gray-500">{s.serviceType}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>{s.status}</span>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600' : s.status === AttendanceStatus.CONFIRMED ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>{s.status}</span>
                   </div>
                 )) : (
                   <div className="p-20 text-center text-gray-400 italic">Nenhum atendimento para esta data.</div>

@@ -176,7 +176,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getAvailableCredits = useCallback((patientId: string, type: ServiceType): number => {
     if (!activeProfissional) return 0;
-    const consumedStatuses = [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED];
+    const consumedStatuses = [
+      AttendanceStatus.COMPLETED, 
+      AttendanceStatus.ABSENT_WITHOUT_NOTICE, 
+      AttendanceStatus.SCHEDULED,
+      AttendanceStatus.CONFIRMED
+    ];
     
     const isPackageRequest = type === ServiceType.PACKAGE;
     

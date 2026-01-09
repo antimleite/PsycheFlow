@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2, Check } from 'lucide-react';
 import { AttendanceStatus, Session, ServiceType, PackageStatus } from '../types';
 
 type SortField = 'datetime' | 'status' | 'type';
@@ -137,7 +137,7 @@ const Scheduling: React.FC = () => {
     
     let packageIdToUse: string | undefined;
     for (const pkg of relevantPkgs) {
-      const consumedCount = visibleSessions.filter(s => s.packageId === pkg.id && [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED].includes(s.status)).length;
+      const consumedCount = visibleSessions.filter(s => s.packageId === pkg.id && [AttendanceStatus.COMPLETED, AttendanceStatus.ABSENT_WITHOUT_NOTICE, AttendanceStatus.SCHEDULED, AttendanceStatus.CONFIRMED].includes(s.status)).length;
       if (consumedCount < pkg.totalSessions) {
         packageIdToUse = pkg.id;
         break;
@@ -326,6 +326,7 @@ const Scheduling: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
                         session.status === AttendanceStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        session.status === AttendanceStatus.CONFIRMED ? 'bg-orange-50 text-orange-600 border-orange-100' :
                         session.status === AttendanceStatus.ABSENT_WITHOUT_NOTICE ? 'bg-rose-50 text-rose-600 border-rose-100' :
                         session.status === AttendanceStatus.RESCHEDULED ? 'bg-amber-50 text-amber-600 border-amber-100' :
                         session.status === AttendanceStatus.CANCELLED ? 'bg-gray-100 text-gray-400 border-gray-200' :
@@ -339,6 +340,7 @@ const Scheduling: React.FC = () => {
                     {menuOpenSessionId === session.id && (
                       <div ref={menuRef} className="absolute right-6 top-12 w-48 bg-white rounded-2xl border border-gray-100 shadow-2xl z-50 p-1 flex flex-col animate-in zoom-in-95 duration-150">
                         <button onClick={() => handleStatusUpdate(session, AttendanceStatus.COMPLETED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"><CheckCircle2 size={16} /> Realizada</button>
+                        <button onClick={() => handleStatusUpdate(session, AttendanceStatus.CONFIRMED)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-orange-600 hover:bg-orange-50 rounded-xl transition-colors"><Check size={16} /> Confirmado</button>
                         <button onClick={() => handleStatusUpdate(session, AttendanceStatus.ABSENT_WITHOUT_NOTICE)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"><UserX size={16} /> Falta s/ Aviso</button>
                         <div className="h-px bg-gray-50 my-1"></div>
                         <button onClick={() => handleEditDirectly(session)} className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><Edit2 size={16} /> Editar Horário</button>
@@ -462,7 +464,7 @@ const Scheduling: React.FC = () => {
 
       {sessionToCancel && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[32px] shadow-2xl max-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertOctagon size={48} />
             </div>
