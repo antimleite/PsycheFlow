@@ -33,6 +33,11 @@ const Scheduling: React.FC = () => {
 
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Ordenação alfabética dos pacientes para os seletores
+  const sortedPatients = useMemo(() => {
+    return [...visiblePatients].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [visiblePatients]);
+
   useEffect(() => {
     if (preSelectedPatientId) {
       setPatientId(preSelectedPatientId);
@@ -265,9 +270,9 @@ const Scheduling: React.FC = () => {
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-visible">
         <div className="p-6 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50">
           <div className="flex items-center gap-4">
-             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
+             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
                 <option value="">Todos os Pacientes</option>
-                {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {sortedPatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
              </select>
              <input type="date" className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
           </div>
@@ -367,9 +372,9 @@ const Scheduling: React.FC = () => {
              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Paciente</label>
-                   <select required disabled={isEditMode || !!editingSession} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-100 outline-none font-medium bg-white disabled:bg-gray-50" value={patientId} onChange={e => setPatientId(e.target.value)}>
+                   <select required disabled={isEditMode || !!editingSession} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-100 outline-none font-medium bg-white disabled:bg-gray-50 cursor-pointer" value={patientId} onChange={e => setPatientId(e.target.value)}>
                       <option value="">Selecione o paciente...</option>
-                      {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {sortedPatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                    </select>
                 </div>
 

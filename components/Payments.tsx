@@ -5,7 +5,18 @@ import { PaymentStatus, PaymentMethod, ServiceType, Payment, SessionPackage, Pac
 import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2 } from 'lucide-react';
 
 const Payments: React.FC = () => {
-  const { visiblePayments, visiblePatients, addPayment, updatePayment, addPackage, setActiveTab, setPreSelectedPatientId, visiblePackages } = useApp();
+  const { 
+    visiblePayments, 
+    visiblePatients, 
+    addPayment, 
+    updatePayment, 
+    addPackage, 
+    updatePackage,
+    setActiveTab, 
+    setPreSelectedPatientId, 
+    visiblePackages 
+  } = useApp();
+  
   const [showForm, setShowForm] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -35,7 +46,6 @@ const Payments: React.FC = () => {
     setIsSaving(true);
     setErrorMsg(null);
 
-    // Tratamento robusto para o valor numérico
     let amountValue = 0;
     if (formData.amount !== '') {
       const cleanValue = formData.amount.toString().replace(',', '.');
@@ -54,7 +64,8 @@ const Payments: React.FC = () => {
     try {
       if (isEditing && editingPayment) {
         const statusChangedToPaid = editingPayment.status !== PaymentStatus.PAID && formData.status === PaymentStatus.PAID;
-        const alreadyHasPackage = visiblePackages.some(pkg => pkg.paymentId === editingPayment.id);
+        const serviceTypeChanged = editingPayment.serviceType !== formData.serviceType;
+        const existingPackage = visiblePackages.find(pkg => pkg.paymentId === editingPayment.id);
 
         await updatePayment({ 
           ...editingPayment, 
@@ -67,8 +78,21 @@ const Payments: React.FC = () => {
           notes: formData.notes
         });
 
-        if (statusChangedToPaid && !alreadyHasPackage) {
-           await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
+        // Lógica de Sincronização de Créditos
+        if (statusChangedToPaid && !existingPackage) {
+          // Se mudou para pago e não tinha pacote, cria um novo
+          await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
+        } else if (existingPackage && serviceTypeChanged) {
+          // Se já existia um pacote e a modalidade mudou (ex: Avulso -> Pacote)
+          const newTotal = formData.serviceType === ServiceType.PACKAGE ? 4 : 1;
+          const diff = newTotal - existingPackage.totalSessions;
+          
+          await updatePackage({
+            ...existingPackage,
+            totalSessions: newTotal,
+            remainingSessions: Math.max(0, existingPackage.remainingSessions + diff),
+            status: PackageStatus.ACTIVE // Reativa se necessário
+          });
         }
       } else {
         const savedPayment = await addPayment({ 
@@ -95,7 +119,6 @@ const Payments: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Erro ao salvar pagamento:", err);
-      // Extrai mensagem amigável de erro do Supabase
       const message = err.message || err.details || "Houve um erro ao processar o pagamento no servidor.";
       setErrorMsg(message);
     } finally { 
