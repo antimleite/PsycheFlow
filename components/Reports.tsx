@@ -33,7 +33,7 @@ const Reports: React.FC = () => {
   const patientHistory = useMemo(() => {
     if (!selectedPatient) return [];
     return visibleSessions
-      .filter(s => s.patientId === selectedPatient.id)
+      .filter(s => s.patientId === selectedPatient.id && s.status !== AttendanceStatus.CANCELLED)
       .sort((a, b) => {
         const dateComp = b.date.localeCompare(a.date);
         if (dateComp !== 0) return dateComp;

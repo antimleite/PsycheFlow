@@ -39,6 +39,10 @@ const Payments: React.FC = () => {
     notes: ''
   });
 
+  const isEligibleForCredits = (status: PaymentStatus) => {
+    return [PaymentStatus.PAID, PaymentStatus.PARTIAL, PaymentStatus.OPEN].includes(status);
+  };
+
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.patientId || isSaving) return;
@@ -63,7 +67,8 @@ const Payments: React.FC = () => {
 
     try {
       if (isEditing && editingPayment) {
-        const statusChangedToPaid = editingPayment.status !== PaymentStatus.PAID && formData.status === PaymentStatus.PAID;
+        const wasEligible = isEligibleForCredits(editingPayment.status);
+        const isNowEligible = isEligibleForCredits(formData.status);
         const serviceTypeChanged = editingPayment.serviceType !== formData.serviceType;
         const existingPackage = visiblePackages.find(pkg => pkg.paymentId === editingPayment.id);
 
@@ -79,8 +84,8 @@ const Payments: React.FC = () => {
         });
 
         // Lógica de Sincronização de Créditos
-        if (statusChangedToPaid && !existingPackage) {
-          // Se mudou para pago e não tinha pacote, cria um novo
+        if (isNowEligible && !wasEligible && !existingPackage) {
+          // Se mudou de um status não elegível (ex: Cancelado) para um elegível e não tinha pacote
           await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
         } else if (existingPackage && serviceTypeChanged) {
           // Se já existia um pacote e a modalidade mudou (ex: Avulso -> Pacote)
@@ -105,7 +110,7 @@ const Payments: React.FC = () => {
           notes: formData.notes
         });
         
-        if (savedPayment && formData.status === PaymentStatus.PAID) {
+        if (savedPayment && isEligibleForCredits(formData.status)) {
           await generateCreditsInDB(targetPatientId, formData.serviceType, savedPayment.id);
         }
       }
@@ -238,7 +243,12 @@ const Payments: React.FC = () => {
                 <td className="px-8 py-5 text-xs font-medium text-gray-600">{payment.serviceType}</td>
                 <td className="px-8 py-5 font-black text-gray-900">R$ {payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                 <td className="px-8 py-5">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${payment.status === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{payment.status}</span>
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${
+                    payment.status === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                    payment.status === PaymentStatus.PARTIAL ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                    payment.status === PaymentStatus.OPEN ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                    'bg-gray-50 text-gray-400 border-gray-100'
+                  }`}>{payment.status}</span>
                 </td>
                 <td className="px-8 py-5 text-right">
                   <button onClick={() => handleEdit(payment)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><Edit2 size={18} /></button>

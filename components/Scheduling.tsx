@@ -24,6 +24,8 @@ const Scheduling: React.FC = () => {
   
   const [filterPatientId, setFilterPatientId] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [filterServiceType, setFilterServiceType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   
   const today = new Date().toISOString().split('T')[0];
   const [patientId, setPatientId] = useState('');
@@ -245,7 +247,12 @@ const Scheduling: React.FC = () => {
   };
 
   const filteredSessions = useMemo(() => {
-    let list = visibleSessions.filter(s => (!filterPatientId || s.patientId === filterPatientId) && (!filterDate || s.date === filterDate));
+    let list = visibleSessions.filter(s => 
+      (!filterPatientId || s.patientId === filterPatientId) && 
+      (!filterDate || s.date === filterDate) &&
+      (!filterServiceType || s.serviceType === filterServiceType) &&
+      (!filterStatus || s.status === filterStatus)
+    );
     list.sort((a, b) => {
       let comp = 0;
       if (sortBy === 'datetime') comp = `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
@@ -253,7 +260,7 @@ const Scheduling: React.FC = () => {
       return sortOrder === 'asc' ? comp : -comp;
     });
     return list;
-  }, [visibleSessions, filterPatientId, filterDate, sortBy, sortOrder]);
+  }, [visibleSessions, filterPatientId, filterDate, filterServiceType, filterStatus, sortBy, sortOrder]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -269,12 +276,20 @@ const Scheduling: React.FC = () => {
 
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-visible">
         <div className="p-6 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
              <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
                 <option value="">Todos os Pacientes</option>
                 {sortedPatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
              </select>
              <input type="date" className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterServiceType} onChange={e => setFilterServiceType(e.target.value)}>
+                <option value="">Todos os Tipos</option>
+                {Object.values(ServiceType).map(t => <option key={t} value={t}>{t}</option>)}
+             </select>
+             <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Todos os Status</option>
+                {Object.values(AttendanceStatus).map(s => <option key={s} value={s}>{s}</option>)}
+             </select>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Ordenar:</span>
