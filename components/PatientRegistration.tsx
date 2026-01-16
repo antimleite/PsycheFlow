@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PatientStatus, Patient, AgeGroup } from '../types';
@@ -399,6 +400,7 @@ const PatientRegistration: React.FC = () => {
                   <td className="px-8 py-5">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${
                       patient.status === PatientStatus.ACTIVE ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                      patient.status === PatientStatus.WAITING ? 'bg-amber-50 text-amber-600 border-amber-100' :
                       'bg-gray-100 text-gray-400 border-gray-200'
                     }`}>{patient.status}</span>
                   </td>

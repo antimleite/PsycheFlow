@@ -18,7 +18,8 @@ export enum PaymentStatus {
 
 export enum PatientStatus {
   ACTIVE = 'Ativo',
-  INACTIVE = 'Inativo'
+  INACTIVE = 'Inativo',
+  WAITING = 'Em espera'
 }
 
 export enum ServiceType {
