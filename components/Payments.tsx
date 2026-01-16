@@ -179,6 +179,13 @@ const Payments: React.FC = () => {
     setShowForm(true);
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    // Adiciona T00:00:00 para evitar que o fuso horário local altere o dia ao converter a string
+    const date = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`);
+    return date.toLocaleDateString('pt-BR');
+  };
+
   const filteredPayments = useMemo(() => {
     return visiblePayments.filter(payment => {
       const patient = visiblePatients.find(p => p.id === payment.patientId);
@@ -228,6 +235,7 @@ const Payments: React.FC = () => {
               <th className="px-8 py-4 font-semibold">Serviço</th>
               <th className="px-8 py-4 font-semibold">Valor</th>
               <th className="px-8 py-4 font-semibold">Status</th>
+              <th className="px-8 py-4 font-semibold">Observações</th>
               <th className="px-8 py-4 text-right">Ação</th>
             </tr>
           </thead>
@@ -237,7 +245,7 @@ const Payments: React.FC = () => {
                 <td className="px-8 py-5">
                   <div className="flex flex-col">
                     <span className="font-bold text-gray-900 text-sm">{visiblePatients.find(p => p.id === payment.patientId)?.name}</span>
-                    <span className="text-[10px] text-gray-400">{new Date(payment.date).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-[10px] text-gray-400">{formatDate(payment.date)}</span>
                   </div>
                 </td>
                 <td className="px-8 py-5 text-xs font-medium text-gray-600">{payment.serviceType}</td>
@@ -249,6 +257,9 @@ const Payments: React.FC = () => {
                     payment.status === PaymentStatus.OPEN ? 'bg-rose-50 text-rose-600 border-rose-100' :
                     'bg-gray-50 text-gray-400 border-gray-100'
                   }`}>{payment.status}</span>
+                </td>
+                <td className="px-8 py-5 text-xs text-gray-500 italic max-w-xs truncate">
+                  {payment.notes || '—'}
                 </td>
                 <td className="px-8 py-5 text-right">
                   <button onClick={() => handleEdit(payment)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><Edit2 size={18} /></button>
@@ -315,15 +326,15 @@ const Payments: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
-                  <select 
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white disabled:bg-gray-50" 
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Data de Pagamento</label>
+                  <input 
+                    type="date" 
+                    required 
                     disabled={isSaving}
-                    value={formData.status} 
-                    onChange={e => setFormData({...formData, status: e.target.value as PaymentStatus})}
-                  >
-                    {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold disabled:bg-gray-50" 
+                    value={formData.date} 
+                    onChange={e => setFormData({...formData, date: e.target.value})} 
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Forma</label>
@@ -336,6 +347,17 @@ const Payments: React.FC = () => {
                     {Object.values(PaymentMethod).map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Status</label>
+                <select 
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold appearance-none bg-white disabled:bg-gray-50" 
+                  disabled={isSaving}
+                  value={formData.status} 
+                  onChange={e => setFormData({...formData, status: e.target.value as PaymentStatus})}
+                >
+                  {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Observações (Opcional)</label>
