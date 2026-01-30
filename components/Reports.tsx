@@ -10,13 +10,37 @@ import {
   Activity,
   CalendarCheck,
   Search,
-  FileDown
+  FileDown,
+  Filter,
+  Calendar
 } from 'lucide-react';
 
 const Reports: React.FC = () => {
   const { visiblePatients, visibleSessions, activeProfissional } = useApp();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Novos estados para filtragem por período
+  const [filterMonth, setFilterMonth] = useState<string>(''); // Vazio = Todos
+  const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
+
+  const months = [
+    { value: '0', label: 'Janeiro' },
+    { value: '1', label: 'Fevereiro' },
+    { value: '2', label: 'Março' },
+    { value: '3', label: 'Abril' },
+    { value: '4', label: 'Maio' },
+    { value: '5', label: 'Junho' },
+    { value: '6', label: 'Julho' },
+    { value: '7', label: 'Agosto' },
+    { value: '8', label: 'Setembro' },
+    { value: '9', label: 'Outubro' },
+    { value: '10', label: 'Novembro' },
+    { value: '11', label: 'Dezembro' },
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
 
   const formatDateStr = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -27,19 +51,40 @@ const Reports: React.FC = () => {
   const activePatients = useMemo(() => {
     return visiblePatients
       .filter(p => p.status === PatientStatus.ACTIVE)
-      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [visiblePatients, searchTerm]);
+      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter(p => {
+        // Se não houver filtro de mês ou ano, mostrar todos
+        if (!filterMonth && !filterYear) return true;
+
+        // Se houver filtro, verificar se o paciente teve sessões nesse período
+        return visibleSessions.some(s => {
+          if (s.patientId !== p.id || s.status === AttendanceStatus.CANCELLED) return false;
+          
+          const sDate = new Date(s.date + 'T00:00:00');
+          const monthMatch = filterMonth === '' || sDate.getMonth().toString() === filterMonth;
+          const yearMatch = filterYear === '' || sDate.getFullYear().toString() === filterYear;
+          
+          return monthMatch && yearMatch;
+        });
+      });
+  }, [visiblePatients, searchTerm, filterMonth, filterYear, visibleSessions]);
 
   const patientHistory = useMemo(() => {
     if (!selectedPatient) return [];
     return visibleSessions
       .filter(s => s.patientId === selectedPatient.id && s.status !== AttendanceStatus.CANCELLED)
+      .filter(s => {
+        const sDate = new Date(s.date + 'T00:00:00');
+        const monthMatch = filterMonth === '' || sDate.getMonth().toString() === filterMonth;
+        const yearMatch = filterYear === '' || sDate.getFullYear().toString() === filterYear;
+        return monthMatch && yearMatch;
+      })
       .sort((a, b) => {
         const dateComp = b.date.localeCompare(a.date);
         if (dateComp !== 0) return dateComp;
         return b.time.localeCompare(a.time);
       });
-  }, [selectedPatient, visibleSessions]);
+  }, [selectedPatient, visibleSessions, filterMonth, filterYear]);
 
   const handleExportIndividualPDF = () => {
     if (!selectedPatient) return;
@@ -139,22 +184,45 @@ const Reports: React.FC = () => {
       </header>
 
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
-            <Users size={20} className="text-indigo-600" />
-            Pacientes Ativos
-          </h3>
-          <div className="relative w-full sm:w-64">
+        <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row items-center justify-between gap-4 bg-gray-50/50">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2 whitespace-nowrap">
+              <Users size={20} className="text-indigo-600" />
+              Pacientes Ativos
+            </h3>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select 
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+              >
+                <option value="">Todos os Meses</option>
+                {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+
+              <select 
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+              >
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text" 
               placeholder="Pesquisar paciente..." 
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -176,6 +244,13 @@ const Reports: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {activePatients.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-8 py-20 text-center text-gray-400 italic">
+                    Nenhum paciente ativo com atendimentos no período selecionado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -189,7 +264,9 @@ const Reports: React.FC = () => {
                 <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl">{selectedPatient.name.charAt(0)}</div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{selectedPatient.name}</h3>
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Histórico Clínico</p>
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                    Histórico Clínico {filterMonth ? `- ${months.find(m => m.value === filterMonth)?.label}` : ''} {filterYear}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -205,7 +282,7 @@ const Reports: React.FC = () => {
             <div className="p-8 space-y-10">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Total de Sessões</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Total de Sessões no Período</span>
                   <div className="flex items-center gap-3 text-indigo-600">
                     <CalendarCheck size={20} />
                     <span className="text-2xl font-black">{patientHistory.length}</span>
@@ -222,7 +299,7 @@ const Reports: React.FC = () => {
               <section className="space-y-6">
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2"><History size={16} className="text-indigo-600" /> Evolução Clínica</h4>
                 <div className="space-y-6 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-gray-100">
-                  {patientHistory.map((session) => (
+                  {patientHistory.length > 0 ? patientHistory.map((session) => (
                     <div key={session.id} className="relative pl-10">
                       <div className="absolute left-[13px] top-4 w-2 h-2 rounded-full bg-indigo-600 ring-4 ring-white"></div>
                       <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm space-y-3">
@@ -233,7 +310,11 @@ const Reports: React.FC = () => {
                         <p className="text-xs text-gray-600 leading-relaxed font-medium">{session.notes || 'Nenhuma nota registrada.'}</p>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="p-10 text-center text-gray-400 italic bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
+                      Nenhuma evolução registrada para o período selecionado.
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
