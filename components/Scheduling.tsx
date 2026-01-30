@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2, Check, CalendarRange } from 'lucide-react';
 import { AttendanceStatus, Session, ServiceType, PackageStatus } from '../types';
 
 type SortField = 'datetime' | 'status' | 'type';
@@ -23,7 +23,8 @@ const Scheduling: React.FC = () => {
   const [processingSessionIds, setProcessingSessionIds] = useState<Set<string>>(new Set());
   
   const [filterPatientId, setFilterPatientId] = useState('');
-  const [filterDate, setFilterDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [filterServiceType, setFilterServiceType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   
@@ -249,7 +250,8 @@ const Scheduling: React.FC = () => {
   const filteredSessions = useMemo(() => {
     let list = visibleSessions.filter(s => 
       (!filterPatientId || s.patientId === filterPatientId) && 
-      (!filterDate || s.date === filterDate) &&
+      (!startDate || s.date >= startDate) &&
+      (!endDate || s.date <= endDate) &&
       (!filterServiceType || s.serviceType === filterServiceType) &&
       (!filterStatus || s.status === filterStatus)
     );
@@ -260,7 +262,7 @@ const Scheduling: React.FC = () => {
       return sortOrder === 'asc' ? comp : -comp;
     });
     return list;
-  }, [visibleSessions, filterPatientId, filterDate, filterServiceType, filterStatus, sortBy, sortOrder]);
+  }, [visibleSessions, filterPatientId, startDate, endDate, filterServiceType, filterStatus, sortBy, sortOrder]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -281,7 +283,31 @@ const Scheduling: React.FC = () => {
                 <option value="">Todos os Pacientes</option>
                 {sortedPatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
              </select>
-             <input type="date" className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+             
+             <div className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm gap-2">
+               <CalendarRange size={14} className="text-gray-400" />
+               <div className="flex items-center gap-2">
+                  <input 
+                    type="date" 
+                    className="bg-transparent border-none text-[11px] font-bold outline-none w-32 focus:ring-0" 
+                    value={startDate} 
+                    onChange={e => setStartDate(e.target.value)} 
+                  />
+                  <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Até</span>
+                  <input 
+                    type="date" 
+                    className="bg-transparent border-none text-[11px] font-bold outline-none w-32 focus:ring-0" 
+                    value={endDate} 
+                    onChange={e => setEndDate(e.target.value)} 
+                  />
+               </div>
+               {(startDate || endDate) && (
+                 <button onClick={() => { setStartDate(''); setEndDate(''); }} className="ml-1 p-1 hover:bg-gray-100 rounded-full text-gray-400">
+                    <X size={12} />
+                 </button>
+               )}
+             </div>
+
              <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterServiceType} onChange={e => setFilterServiceType(e.target.value)}>
                 <option value="">Todos os Tipos</option>
                 {Object.values(ServiceType).map(t => <option key={t} value={t}>{t}</option>)}
