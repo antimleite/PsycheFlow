@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
             email: session.user.email || '',
             phone: session.user.user_metadata?.phone || '',
-            role: session.user.user_metadata?.role || UserRole.STANDARD,
+            role: session.user.user_metadata?.role || UserRole.TESTE,
             status: UserStatus.ACTIVE,
             professionalAccess: session.user.user_metadata?.professional_access || []
           };
@@ -248,7 +248,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       options: { 
         data: { 
           name, 
-          role: UserRole.STANDARD, 
+          role: UserRole.TESTE, 
           status: UserStatus.INACTIVE, 
           professional_access: [] 
         } 

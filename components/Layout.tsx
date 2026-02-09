@@ -37,6 +37,16 @@ const LogoSymbolSmall = () => (
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const { currentUser, logout, activeProfissional, setActiveProfissional } = useApp();
 
+  // Verificação robusta para garantir que administradores sempre vejam os menus de gestão
+  const isAdmin = React.useMemo(() => {
+    if (!currentUser?.role) return false;
+    const role = String(currentUser.role).toUpperCase();
+    return role === 'ADMIN' || 
+           role === 'ADMINISTRADOR' || 
+           role === 'ADMINISTRADOR(A)' || 
+           role === UserRole.ADMIN.toUpperCase();
+  }, [currentUser]);
+
   const menuItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'patients', label: 'Pacientes', icon: Users },
@@ -47,7 +57,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'financialReport', label: 'Rel. Financeiro', icon: CircleDollarSign },
   ];
 
-  if (currentUser?.role === UserRole.ADMIN) {
+  if (isAdmin) {
     menuItems.push({ id: 'profissionais', label: 'Profissionais', icon: Stethoscope });
     menuItems.push({ id: 'users', label: 'Usuários', icon: ShieldCheck });
   }
@@ -64,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </div>
         </div>
         
-        <nav className="flex-1 px-4 space-y-1 mt-4">
+        <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto pb-6 custom-scrollbar">
           {menuItems.map((item) => (
             <button
               key={item.id}

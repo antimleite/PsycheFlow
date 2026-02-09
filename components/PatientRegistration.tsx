@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PatientStatus, Patient, AgeGroup } from '../types';
-import { Edit2, X, AlertCircle, UserPlus, Search, Loader2, Baby, User as UserIcon, FilterX, Info, FileDown } from 'lucide-react';
+import { Edit2, X, AlertCircle, UserPlus, Search, Loader2, Baby, User as UserIcon, FilterX, Info, FileDown, Activity, Users, UserCheck, UserMinus, Clock } from 'lucide-react';
 
 const PatientRegistration: React.FC = () => {
   const { visiblePatients, addPatient, updatePatient, activeProfissional } = useApp();
@@ -29,6 +29,33 @@ const PatientRegistration: React.FC = () => {
     ageGroup: undefined as AgeGroup | undefined,
     guardianName: ''
   });
+
+  // Cálculo de Estatísticas para os Cards de Resumo
+  const stats = useMemo(() => {
+    const statusCounts = {
+      [PatientStatus.ACTIVE]: 0,
+      [PatientStatus.INACTIVE]: 0,
+      [PatientStatus.WAITING]: 0
+    };
+    
+    const profileCounts = {
+      [AgeGroup.ADULT]: 0,
+      [AgeGroup.CHILD]: 0,
+      [AgeGroup.ADOLESCENT]: 0,
+      'N/A': 0
+    };
+
+    visiblePatients.forEach(p => {
+      if (statusCounts[p.status] !== undefined) statusCounts[p.status]++;
+      if (p.ageGroup && profileCounts[p.ageGroup] !== undefined) {
+        profileCounts[p.ageGroup]++;
+      } else {
+        profileCounts['N/A']++;
+      }
+    });
+
+    return { statusCounts, profileCounts };
+  }, [visiblePatients]);
 
   const formatPhone = (v: string) => {
     v = v.replace(/\D/g, "");
@@ -208,7 +235,7 @@ const PatientRegistration: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-12">
       <div className="flex justify-between items-center print-hidden">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Diretório de Pacientes</h2>
@@ -228,6 +255,87 @@ const PatientRegistration: React.FC = () => {
             <UserPlus size={19} /> Novo Paciente
           </button>
         </div>
+      </div>
+
+      {/* Cards de Resumo de Quantidades - Otimizados para exibir apenas valores > 0 */}
+      <div className="flex flex-wrap gap-4">
+        {/* Status: Ativo */}
+        {stats.statusCounts[PatientStatus.ACTIVE] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Ativos</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.statusCounts[PatientStatus.ACTIVE]}</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <UserCheck size={20} />
+            </div>
+          </div>
+        )}
+
+        {/* Status: Em Espera */}
+        {stats.statusCounts[PatientStatus.WAITING] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest block mb-1">Em Espera</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.statusCounts[PatientStatus.WAITING]}</p>
+            </div>
+            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+              <Clock size={20} />
+            </div>
+          </div>
+        )}
+
+        {/* Status: Inativo */}
+        {stats.statusCounts[PatientStatus.INACTIVE] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Inativos</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.statusCounts[PatientStatus.INACTIVE]}</p>
+            </div>
+            <div className="w-10 h-10 bg-gray-50 text-gray-400 rounded-xl flex items-center justify-center">
+              <UserMinus size={20} />
+            </div>
+          </div>
+        )}
+
+        {/* Perfil: Criança */}
+        {stats.profileCounts[AgeGroup.CHILD] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Crianças</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.profileCounts[AgeGroup.CHILD]}</p>
+            </div>
+            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+              <Baby size={20} />
+            </div>
+          </div>
+        )}
+
+        {/* Perfil: Adolescente */}
+        {stats.profileCounts[AgeGroup.ADOLESCENT] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest block mb-1">Adolescentes</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.profileCounts[AgeGroup.ADOLESCENT]}</p>
+            </div>
+            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+              <Users size={20} />
+            </div>
+          </div>
+        )}
+
+        {/* Perfil: Adulto */}
+        {stats.profileCounts[AgeGroup.ADULT] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest block mb-1">Adultos</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.profileCounts[AgeGroup.ADULT]}</p>
+            </div>
+            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+              <UserIcon size={20} />
+            </div>
+          </div>
+        )}
       </div>
 
       {showForm && (

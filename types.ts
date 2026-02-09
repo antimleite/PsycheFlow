@@ -41,8 +41,10 @@ export enum PackageStatus {
 }
 
 export enum UserRole {
-  ADMIN = 'Administrador',
-  STANDARD = 'Padrão'
+  ADMIN = 'Administrador(a)',
+  SECRETARIO = 'Secretário(a)',
+  PSICOLOGO = 'Psicólogo(a)',
+  TESTE = 'Teste'
 }
 
 export enum UserStatus {
@@ -80,7 +82,7 @@ export interface User {
   email: string;
   password?: string;
   phone: string;
-  role: UserRole;
+  role: UserRole | string; // Permitir string para flexibilidade com banco de dados
   status: UserStatus;
   avatar?: string;
   professionalAccess: string[]; 

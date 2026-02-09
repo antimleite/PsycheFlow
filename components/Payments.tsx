@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PaymentStatus, PaymentMethod, ServiceType, Payment, SessionPackage, PackageStatus } from '../types';
-import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2 } from 'lucide-react';
+import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2, XCircle, Clock, Wallet } from 'lucide-react';
 
 const Payments: React.FC = () => {
   const { 
@@ -197,6 +197,22 @@ const Payments: React.FC = () => {
     });
   }, [visiblePayments, visiblePatients, searchTerm, filterStatus, filterService, filterPatient]);
 
+  // Cálculo de Estatísticas para os Cards de Resumo
+  const stats = useMemo(() => {
+    const counts = {
+      [PaymentStatus.PAID]: 0,
+      [PaymentStatus.PARTIAL]: 0,
+      [PaymentStatus.OPEN]: 0,
+      [PaymentStatus.CANCELLED]: 0
+    };
+
+    filteredPayments.forEach(p => {
+      if (counts[p.status] !== undefined) counts[p.status]++;
+    });
+
+    return counts;
+  }, [filteredPayments]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
@@ -209,11 +225,62 @@ const Payments: React.FC = () => {
         </button>
       </div>
 
+      {/* Cards de Resumo de Quantidades - Otimizados para exibir apenas valores > 0 */}
+      <div className="flex flex-wrap gap-4 animate-in slide-in-from-top-4 duration-500">
+        {stats[PaymentStatus.PAID] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Pagos</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats[PaymentStatus.PAID]}</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <CheckCircle size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats[PaymentStatus.PARTIAL] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block mb-1">Parciais</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats[PaymentStatus.PARTIAL]}</p>
+            </div>
+            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center">
+              <Clock size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats[PaymentStatus.OPEN] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest block mb-1">Em aberto</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats[PaymentStatus.OPEN]}</p>
+            </div>
+            <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+              <Wallet size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats[PaymentStatus.CANCELLED] > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Cancelados</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats[PaymentStatus.CANCELLED]}</p>
+            </div>
+            <div className="w-10 h-10 bg-gray-50 text-gray-400 rounded-xl flex items-center justify-center">
+              <XCircle size={20} />
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-50 grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input type="text" placeholder="Pesquisar..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="Pesquisar..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-50 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterPatient} onChange={(e) => setFilterPatient(e.target.value)}>
             <option value="Todos">Paciente (Todos)</option>

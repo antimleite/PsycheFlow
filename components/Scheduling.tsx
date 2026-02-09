@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2, Check, CalendarRange, ListFilter } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, MoreHorizontal, CheckCircle2, X, RotateCcw, AlertCircle, Wallet, UserX, ArrowUpDown, Edit2, AlertOctagon, Package, Info, Zap, Trash2, Loader2, Check, CalendarRange, ListFilter, XCircle, UserCheck } from 'lucide-react';
 import { AttendanceStatus, Session, ServiceType, PackageStatus } from '../types';
 
 type SortField = 'datetime' | 'status' | 'type';
@@ -264,6 +264,32 @@ const Scheduling: React.FC = () => {
     return list;
   }, [visibleSessions, filterPatientId, startDate, endDate, filterServiceType, filterStatus, sortBy, sortOrder]);
 
+  // Cálculo de Estatísticas para os Cards de Resumo
+  const stats = useMemo(() => {
+    const counts = {
+      avulso: 0,
+      pacote: 0,
+      realizada: 0,
+      agendada: 0,
+      confirmada: 0,
+      falta: 0
+    };
+
+    filteredSessions.forEach(s => {
+      // Tipo / Identificador
+      if (s.serviceType === ServiceType.SINGLE) counts.avulso++;
+      else if (s.serviceType === ServiceType.PACKAGE) counts.pacote++;
+      
+      // Status
+      if (s.status === AttendanceStatus.COMPLETED) counts.realizada++;
+      else if (s.status === AttendanceStatus.SCHEDULED) counts.agendada++;
+      else if (s.status === AttendanceStatus.CONFIRMED) counts.confirmada++;
+      else if (s.status === AttendanceStatus.ABSENT_WITHOUT_NOTICE) counts.falta++;
+    });
+
+    return counts;
+  }, [filteredSessions]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
@@ -276,7 +302,83 @@ const Scheduling: React.FC = () => {
         </button>
       </div>
 
+      {/* Cards de Resumo de Quantidades - Otimizados para exibir apenas valores > 0 */}
+      <div className="flex flex-wrap gap-4 animate-in slide-in-from-top-4 duration-500">
+        {stats.avulso > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest block mb-1">Avulsos</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.avulso}</p>
+            </div>
+            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+              <Zap size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats.pacote > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-purple-500 uppercase tracking-widest block mb-1">Pacotes</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.pacote}</p>
+            </div>
+            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+              <Package size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats.realizada > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Realizadas</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.realizada}</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <CheckCircle2 size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats.agendada > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest block mb-1">Agendadas</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.agendada}</p>
+            </div>
+            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+              <CalendarIcon size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats.confirmada > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block mb-1">Confirmadas</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.confirmada}</p>
+            </div>
+            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center">
+              <UserCheck size={20} />
+            </div>
+          </div>
+        )}
+
+        {stats.falta > 0 && (
+          <div className="flex-1 min-w-[180px] bg-white p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+            <div>
+              <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest block mb-1">Faltas</span>
+              <p className="text-2xl font-black text-gray-900 leading-none">{stats.falta}</p>
+            </div>
+            <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+              <UserX size={20} />
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-visible">
+        {/* Filtros e listagem mantidos inalterados conforme a lógica anterior */}
         <div className="p-6 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50">
           <div className="flex flex-wrap items-center gap-4">
              <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer" value={filterPatientId} onChange={e => setFilterPatientId(e.target.value)}>
