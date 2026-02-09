@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PaymentStatus, PaymentMethod, ServiceType, Payment, SessionPackage, PackageStatus } from '../types';
-import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2, XCircle, Clock, Wallet } from 'lucide-react';
+import { CreditCard, Filter, Search, X, Edit2, Info, CheckCircle, Calendar, AlignLeft, AlertCircle, Loader2, XCircle, Clock, Wallet, TrendingUp } from 'lucide-react';
 
 const Payments: React.FC = () => {
   const { 
@@ -83,12 +83,9 @@ const Payments: React.FC = () => {
           notes: formData.notes
         });
 
-        // Lógica de Sincronização de Créditos
         if (isNowEligible && !wasEligible && !existingPackage) {
-          // Se mudou de um status não elegível (ex: Cancelado) para um elegível e não tinha pacote
           await generateCreditsInDB(targetPatientId, formData.serviceType, editingPayment.id);
         } else if (existingPackage && serviceTypeChanged) {
-          // Se já existia um pacote e a modalidade mudou (ex: Avulso -> Pacote)
           const newTotal = formData.serviceType === ServiceType.PACKAGE ? 4 : 1;
           const diff = newTotal - existingPackage.totalSessions;
           
@@ -96,7 +93,7 @@ const Payments: React.FC = () => {
             ...existingPackage,
             totalSessions: newTotal,
             remainingSessions: Math.max(0, existingPackage.remainingSessions + diff),
-            status: PackageStatus.ACTIVE // Reativa se necessário
+            status: PackageStatus.ACTIVE
           });
         }
       } else {
@@ -124,7 +121,7 @@ const Payments: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Erro ao salvar pagamento:", err);
-      const message = err.message || err.details || "Houve um erro ao processar o pagamento no servidor.";
+      const message = err.message || "Houve um erro ao processar o pagamento no servidor.";
       setErrorMsg(message);
     } finally { 
       setIsSaving(false); 
@@ -181,7 +178,6 @@ const Payments: React.FC = () => {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
-    // Adiciona T00:00:00 para evitar que o fuso horário local altere o dia ao converter a string
     const date = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`);
     return date.toLocaleDateString('pt-BR');
   };
@@ -214,7 +210,7 @@ const Payments: React.FC = () => {
   }, [filteredPayments]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestão Financeira</h2>
@@ -277,64 +273,71 @@ const Payments: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50 grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50/50">
-          <div className="relative">
+        <div className="p-6 border-b border-gray-50 flex flex-wrap gap-4 bg-gray-50/50">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input type="text" placeholder="Pesquisar..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-50 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterPatient} onChange={(e) => setFilterPatient(e.target.value)}>
+          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none flex-1 min-w-[150px]" value={filterPatient} onChange={(e) => setFilterPatient(e.target.value)}>
             <option value="Todos">Paciente (Todos)</option>
             {visiblePatients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterService} onChange={(e) => setFilterService(e.target.value)}>
+          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none flex-1 min-w-[150px]" value={filterService} onChange={(e) => setFilterService(e.target.value)}>
             <option value="Todos">Serviço (Todos)</option>
             {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none flex-1 min-w-[150px]" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="Todos">Status (Todos)</option>
             {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            <tr>
-              <th className="px-8 py-4 font-semibold">Paciente</th>
-              <th className="px-8 py-4 font-semibold">Serviço</th>
-              <th className="px-8 py-4 font-semibold">Valor</th>
-              <th className="px-8 py-4 font-semibold">Status</th>
-              <th className="px-8 py-4 font-semibold">Observações</th>
-              <th className="px-8 py-4 text-right">Ação</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredPayments.map((payment) => (
-              <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-8 py-5">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-gray-900 text-sm">{visiblePatients.find(p => p.id === payment.patientId)?.name}</span>
-                    <span className="text-[10px] text-gray-400">{formatDate(payment.date)}</span>
-                  </div>
-                </td>
-                <td className="px-8 py-5 text-xs font-medium text-gray-600">{payment.serviceType}</td>
-                <td className="px-8 py-5 font-black text-gray-900">R$ {payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                <td className="px-8 py-5">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${
-                    payment.status === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                    payment.status === PaymentStatus.PARTIAL ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                    payment.status === PaymentStatus.OPEN ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                    'bg-gray-50 text-gray-400 border-gray-100'
-                  }`}>{payment.status}</span>
-                </td>
-                <td className="px-8 py-5 text-xs text-gray-500 italic max-w-xs truncate">
-                  {payment.notes || '—'}
-                </td>
-                <td className="px-8 py-5 text-right">
-                  <button onClick={() => handleEdit(payment)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><Edit2 size={18} /></button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <tr>
+                <th className="px-8 py-4 font-semibold">Paciente</th>
+                <th className="px-8 py-4 font-semibold">Serviço</th>
+                <th className="px-8 py-4 font-semibold">Valor</th>
+                <th className="px-8 py-4 font-semibold text-center">Status</th>
+                <th className="px-8 py-4 font-semibold">Observações</th>
+                <th className="px-8 py-4 text-right">Ação</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredPayments.map((payment) => (
+                <tr key={payment.id} className="hover:bg-gray-50 transition-colors group">
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-900 text-sm">{visiblePatients.find(p => p.id === payment.patientId)?.name}</span>
+                      <span className="text-[10px] text-gray-400">{formatDate(payment.date)}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-xs font-medium text-gray-600">{payment.serviceType}</td>
+                  <td className="px-8 py-5 font-black text-gray-900">R$ {payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td className="px-8 py-5 text-center">
+                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${
+                      payment.status === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                      payment.status === PaymentStatus.PARTIAL ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                      payment.status === PaymentStatus.OPEN ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                      'bg-gray-50 text-gray-400 border-gray-100'
+                    }`}>{payment.status}</span>
+                  </td>
+                  <td className="px-8 py-5 text-xs text-gray-500 italic max-w-xs truncate">
+                    {payment.notes || '—'}
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <button onClick={() => handleEdit(payment)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={18} /></button>
+                  </td>
+                </tr>
+              ))}
+              {filteredPayments.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-8 py-20 text-center text-gray-400 italic font-medium">Nenhum registro encontrado.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showForm && (
@@ -381,8 +384,7 @@ const Payments: React.FC = () => {
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Valor (R$)</label>
                   <input 
-                    type="number" 
-                    step="0.01" 
+                    type="text" 
                     required 
                     disabled={isSaving}
                     className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-4 focus:ring-indigo-50 outline-none font-bold disabled:bg-gray-50" 
