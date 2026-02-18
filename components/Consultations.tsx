@@ -362,9 +362,76 @@ Intervenções: ${assessment.interventions.join(', ')}
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* 1. Emoção Atual e Escalas */}
+                  {/* 1. Objetivo da Sessão & Observações Clínicas (Reordenado para ser o primeiro bloco) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Objetivo da Sessão (Primeiro na grid) */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> Objetivo da Sessão</h4>
+                      <div className="space-y-4 flex-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Sessão</label>
+                          <select 
+                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                            value={assessment.objective.type}
+                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, type: e.target.value}}))}
+                          >
+                            <option>Continuação da anterior</option>
+                            <option>Demanda Emergente</option>
+                            <option>Reavaliação</option>
+                            <option>Encerramento</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tema Principal</label>
+                          <input 
+                            type="text" 
+                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="Ex: Conflito familiar, Ansiedade social..."
+                            value={assessment.objective.theme}
+                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, theme: e.target.value}}))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Observações Clínicas (Segundo na grid) */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><BrainCircuit size={16} /> Observações Clínicas</h4>
+                      <div className="space-y-3">
+                        {Object.entries(CLINICAL_OBSERVATIONS).map(([key, options]) => (
+                          <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase w-24 capitalize">{key === 'affect' ? 'Afeto' : key === 'speech' ? 'Fala' : key === 'insight' ? 'Insight' : key === 'adherence' ? 'Adesão' : 'Aparência'}</span>
+                            <div className="flex flex-wrap gap-2 flex-1">
+                              {options.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setAssessment(prev => ({...prev, observations: {...prev.observations, [key]: opt}}))}
+                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                    assessment.observations[key as keyof typeof assessment.observations] === opt
+                                      ? 'bg-indigo-600 text-white border-indigo-600'
+                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Emoção Atual e Escalas */}
                   <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Smile size={16} /> Estado Emocional (Checklist Visual)</h4>
+                    <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                          <Smile size={16} /> Estado Emocional (Checklist Visual)
+                        </h4>
+                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
+                          Selecione até 3 opções
+                        </span>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                       {EMOTIONS.map(emotion => (
                         <button
@@ -401,64 +468,6 @@ Intervenções: ${assessment.interventions.join(', ')}
                           </div>
                         );
                       })}
-                    </div>
-                  </div>
-
-                  {/* 2. Observações Clínicas & Objetivo */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><BrainCircuit size={16} /> Observações Clínicas</h4>
-                      <div className="space-y-3">
-                        {Object.entries(CLINICAL_OBSERVATIONS).map(([key, options]) => (
-                          <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase w-24 capitalize">{key === 'affect' ? 'Afeto' : key === 'speech' ? 'Fala' : key === 'insight' ? 'Insight' : key === 'adherence' ? 'Adesão' : 'Aparência'}</span>
-                            <div className="flex flex-wrap gap-2 flex-1">
-                              {options.map(opt => (
-                                <button
-                                  key={opt}
-                                  onClick={() => setAssessment(prev => ({...prev, observations: {...prev.observations, [key]: opt}}))}
-                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-                                    assessment.observations[key as keyof typeof assessment.observations] === opt
-                                      ? 'bg-indigo-600 text-white border-indigo-600'
-                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> Objetivo da Sessão</h4>
-                      <div className="space-y-4 flex-1">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Sessão</label>
-                          <select 
-                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={assessment.objective.type}
-                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, type: e.target.value}}))}
-                          >
-                            <option>Continuação da anterior</option>
-                            <option>Demanda Emergente</option>
-                            <option>Reavaliação</option>
-                            <option>Encerramento</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tema Principal</label>
-                          <input 
-                            type="text" 
-                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                            placeholder="Ex: Conflito familiar, Ansiedade social..."
-                            value={assessment.objective.theme}
-                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, theme: e.target.value}}))}
-                          />
-                        </div>
-                      </div>
                     </div>
                   </div>
 
