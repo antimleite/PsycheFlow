@@ -1,8 +1,50 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { AttendanceStatus, Session } from '../types';
-import { Calendar, Clock, Video, Users, CheckCircle, ArrowRight, X, Loader2, Save, FileText, Stethoscope, CheckCircle2 } from 'lucide-react';
+import { 
+  Calendar, Clock, Video, Users, CheckCircle, ArrowRight, X, Loader2, Save, 
+  FileText, Stethoscope, CheckCircle2, Smile, Frown, Meh, Activity, 
+  TrendingUp, TrendingDown, Minus, AlertTriangle, AlertOctagon, BrainCircuit, HeartPulse 
+} from 'lucide-react';
+
+// Constantes para os novos campos
+const EMOTIONS = [
+  { id: 'Estável', icon: Smile, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  { id: 'Ansioso', icon: Activity, color: 'text-amber-500', bg: 'bg-amber-50' },
+  { id: 'Triste', icon: Frown, color: 'text-blue-500', bg: 'bg-blue-50' },
+  { id: 'Irritado', icon: AlertOctagon, color: 'text-rose-500', bg: 'bg-rose-50' },
+  { id: 'Apático', icon: Meh, color: 'text-gray-500', bg: 'bg-gray-50' },
+  { id: 'Melhorando', icon: TrendingUp, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  { id: 'Em crise', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-100' },
+];
+
+const CLINICAL_OBSERVATIONS = {
+  appearance: ['Adequada', 'Cansado', 'Agitado', 'Descuidado'],
+  speech: ['Coerente', 'Lenta', 'Acelerada', 'Tangencial'],
+  affect: ['Compatível', 'Incompatível', 'Embotado', 'Exaltado'],
+  insight: ['Presente', 'Parcial', 'Ausente'],
+  adherence: ['Boa', 'Média', 'Baixa']
+};
+
+const INTERVENTIONS = [
+  'Psicoeducação', 'Reestruturação Cognitiva', 'Técnica de Respiração', 
+  'Exposição Gradual', 'Escuta Ativa', 'Questionamento Socrático', 
+  'Treino de Habilidades', 'Validação Emocional'
+];
+
+const RISKS = {
+  suicide: ['Não', 'Passiva', 'Ativa'],
+  selfHarm: ['Não', 'Sim'],
+  others: ['Não', 'Sim']
+};
+
+const EVOLUTION = [
+  { id: 'Melhorando', icon: TrendingUp, color: 'emerald' },
+  { id: 'Estável', icon: Minus, color: 'blue' },
+  { id: 'Oscilando', icon: Activity, color: 'amber' },
+  { id: 'Piorando', icon: TrendingDown, color: 'rose' },
+];
 
 const Consultations: React.FC = () => {
   const { visibleSessions, visiblePatients, updateSession } = useApp();
@@ -11,11 +53,23 @@ const Consultations: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Form State
+  // Form State - Etapa 1
   const [duration, setDuration] = useState<number>(50);
   const [modality, setModality] = useState<'Presencial' | 'Online'>('Presencial');
-  const [notes, setNotes] = useState('');
-  const [medicalRecord, setMedicalRecord] = useState('');
+
+  // Form State - Etapa 2 (Estruturado)
+  const [assessment, setAssessment] = useState({
+    emotions: [] as string[],
+    scales: { mood: 5, anxiety: 5, energy: 5 },
+    observations: { appearance: '', speech: '', affect: '', insight: '', adherence: '' },
+    objective: { theme: '', type: 'Continuação' },
+    interventions: [] as string[],
+    homework: '',
+    risks: { suicide: 'Não', selfHarm: 'Não', others: 'Não' },
+    evolution: '',
+    summary: '', // Resumo clínico curto
+    notes: '' // Anotações livres
+  });
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -27,19 +81,66 @@ const Consultations: React.FC = () => {
   }, [visibleSessions, todayStr]);
 
   const handleCardClick = (session: Session) => {
-    if (session.status === AttendanceStatus.COMPLETED) {
-      setDuration(session.duration || 50);
-      setModality(session.modality || 'Presencial');
-      setNotes(session.notes || '');
-      setMedicalRecord(session.medicalRecord || '');
+    // Reset form
+    setDuration(session.duration || 50);
+    setModality(session.modality || 'Presencial');
+    
+    if (session.structuredAssessment) {
+      try {
+        const parsed = JSON.parse(session.structuredAssessment);
+        setAssessment(parsed);
+      } catch (e) {
+        // Fallback se não tiver JSON estruturado mas tiver notas antigas
+        setAssessment({
+          emotions: [],
+          scales: { mood: 5, anxiety: 5, energy: 5 },
+          observations: { appearance: '', speech: '', affect: '', insight: '', adherence: '' },
+          objective: { theme: '', type: 'Continuação' },
+          interventions: [],
+          homework: '',
+          risks: { suicide: 'Não', selfHarm: 'Não', others: 'Não' },
+          evolution: '',
+          summary: session.medicalRecord || '',
+          notes: session.notes || ''
+        });
+      }
     } else {
-      setDuration(50);
-      setModality('Presencial');
-      setNotes('');
-      setMedicalRecord('');
+      // Novo atendimento ou legado
+      setAssessment({
+        emotions: [],
+        scales: { mood: 5, anxiety: 5, energy: 5 },
+        observations: { appearance: '', speech: '', affect: '', insight: '', adherence: '' },
+        objective: { theme: '', type: 'Continuação' },
+        interventions: [],
+        homework: '',
+        risks: { suicide: 'Não', selfHarm: 'Não', others: 'Não' },
+        evolution: '',
+        summary: session.medicalRecord || '',
+        notes: session.notes || ''
+      });
     }
+
     setSelectedSession(session);
     setStep(1);
+  };
+
+  const toggleEmotion = (emotionId: string) => {
+    setAssessment(prev => {
+      if (prev.emotions.includes(emotionId)) {
+        return { ...prev, emotions: prev.emotions.filter(e => e !== emotionId) };
+      }
+      if (prev.emotions.length >= 3) return prev;
+      return { ...prev, emotions: [...prev.emotions, emotionId] };
+    });
+  };
+
+  const toggleIntervention = (item: string) => {
+    setAssessment(prev => {
+      if (prev.interventions.includes(item)) {
+        return { ...prev, interventions: prev.interventions.filter(i => i !== item) };
+      }
+      return { ...prev, interventions: [...prev.interventions, item] };
+    });
   };
 
   const handleNextStep = () => {
@@ -50,12 +151,23 @@ const Consultations: React.FC = () => {
     if (!selectedSession) return;
     setIsSaving(true);
     try {
+      // Gerar um resumo automático para o campo medicalRecord (compatibilidade com histórico legado)
+      const autoSummary = `
+[Avaliação Estruturada]
+Humor: ${assessment.emotions.join(', ')} (Nível: ${assessment.scales.mood}/10)
+Evolução: ${assessment.evolution || 'Não informada'}
+Risco Suicida: ${assessment.risks.suicide} | Autoagressão: ${assessment.risks.selfHarm}
+Tema: ${assessment.objective.theme}
+Intervenções: ${assessment.interventions.join(', ')}
+      `.trim() + '\n\n' + assessment.summary;
+
       await updateSession({
         ...selectedSession,
         duration,
         modality,
-        notes,
-        medicalRecord,
+        notes: assessment.notes,
+        medicalRecord: autoSummary,
+        structuredAssessment: JSON.stringify(assessment),
         status: AttendanceStatus.COMPLETED
       });
       setSelectedSession(null);
@@ -166,10 +278,10 @@ const Consultations: React.FC = () => {
       {/* Modal de Atendimento */}
       {selectedSession && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className={`bg-white rounded-[32px] shadow-2xl w-full flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200 ${step === 2 ? 'max-w-4xl' : 'max-w-2xl'}`}>
             
             {/* Header Modal */}
-            <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+            <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
               <div className="flex items-center gap-4">
                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-indigo-200">
                    {getPatientName(selectedSession.patientId).charAt(0)}
@@ -177,7 +289,7 @@ const Consultations: React.FC = () => {
                  <div>
                    <h3 className="text-xl font-bold text-gray-900">{getPatientName(selectedSession.patientId)}</h3>
                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                     Registro de Atendimento • {step === 1 ? 'Dados da Sessão' : 'Evolução Clínica'}
+                     {step === 1 ? 'Confirmação de Dados' : 'Registro Clínico Estruturado'}
                    </p>
                  </div>
               </div>
@@ -185,15 +297,15 @@ const Consultations: React.FC = () => {
             </div>
 
             {/* Content Modal */}
-            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#FAFAFA]">
               {step === 1 ? (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Data</label>
                       <p className="font-bold text-gray-900 flex items-center gap-2"><Calendar size={16} className="text-indigo-500" /> {new Date(selectedSession.date).toLocaleDateString('pt-BR')}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Horário</label>
                       <p className="font-bold text-gray-900 flex items-center gap-2"><Clock size={16} className="text-indigo-500" /> {selectedSession.time}</p>
                     </div>
@@ -249,28 +361,213 @@ const Consultations: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6 h-full flex flex-col">
-                  <div className="flex-1 flex flex-col">
-                    <label className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">
-                      <FileText size={16} /> Anotações da Sessão
-                    </label>
-                    <textarea 
-                      className="w-full flex-1 p-4 bg-yellow-50/50 border border-yellow-100 rounded-2xl focus:ring-2 focus:ring-yellow-200 outline-none text-gray-700 text-sm leading-relaxed resize-none mb-4"
-                      placeholder="Registre aqui observações gerais sobre a sessão..."
-                      value={notes}
-                      onChange={e => setNotes(e.target.value)}
-                    />
+                <div className="space-y-8">
+                  {/* 1. Emoção Atual e Escalas */}
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Smile size={16} /> Estado Emocional (Checklist Visual)</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+                      {EMOTIONS.map(emotion => (
+                        <button
+                          key={emotion.id}
+                          onClick={() => toggleEmotion(emotion.id)}
+                          className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+                            assessment.emotions.includes(emotion.id)
+                              ? `${emotion.bg} border-${emotion.color.split('-')[1]}-200 ring-2 ring-${emotion.color.split('-')[1]}-200`
+                              : 'bg-gray-50 border-transparent hover:bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          <emotion.icon className={`mb-2 ${assessment.emotions.includes(emotion.id) ? emotion.color : 'text-gray-400'}`} size={24} />
+                          <span className={`text-[10px] font-bold uppercase ${assessment.emotions.includes(emotion.id) ? 'text-gray-800' : 'text-gray-400'}`}>{emotion.id}</span>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-50">
+                      {['Humor Geral', 'Ansiedade', 'Energia'].map((label, idx) => {
+                        const key = label === 'Humor Geral' ? 'mood' : label === 'Ansiedade' ? 'anxiety' : 'energy';
+                        const val = assessment.scales[key as keyof typeof assessment.scales];
+                        return (
+                          <div key={label}>
+                            <div className="flex justify-between mb-2">
+                              <span className="text-[10px] font-bold text-gray-500 uppercase">{label}</span>
+                              <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 rounded-lg">{val}/10</span>
+                            </div>
+                            <input 
+                              type="range" min="0" max="10" 
+                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                              value={val}
+                              onChange={(e) => setAssessment(prev => ({...prev, scales: {...prev.scales, [key]: parseInt(e.target.value)}}))}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  
-                  <div className="flex-1 flex flex-col">
-                    <label className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">
-                      <Stethoscope size={16} /> Evolução do Prontuário
+
+                  {/* 2. Observações Clínicas & Objetivo */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><BrainCircuit size={16} /> Observações Clínicas</h4>
+                      <div className="space-y-3">
+                        {Object.entries(CLINICAL_OBSERVATIONS).map(([key, options]) => (
+                          <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase w-24 capitalize">{key === 'affect' ? 'Afeto' : key === 'speech' ? 'Fala' : key === 'insight' ? 'Insight' : key === 'adherence' ? 'Adesão' : 'Aparência'}</span>
+                            <div className="flex flex-wrap gap-2 flex-1">
+                              {options.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setAssessment(prev => ({...prev, observations: {...prev.observations, [key]: opt}}))}
+                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                    assessment.observations[key as keyof typeof assessment.observations] === opt
+                                      ? 'bg-indigo-600 text-white border-indigo-600'
+                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> Objetivo da Sessão</h4>
+                      <div className="space-y-4 flex-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Sessão</label>
+                          <select 
+                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                            value={assessment.objective.type}
+                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, type: e.target.value}}))}
+                          >
+                            <option>Continuação da anterior</option>
+                            <option>Demanda Emergente</option>
+                            <option>Reavaliação</option>
+                            <option>Encerramento</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tema Principal</label>
+                          <input 
+                            type="text" 
+                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="Ex: Conflito familiar, Ansiedade social..."
+                            value={assessment.objective.theme}
+                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, theme: e.target.value}}))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Intervenções & Evolução */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Stethoscope size={16} /> Intervenções Realizadas</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {INTERVENTIONS.map(item => (
+                          <button
+                            key={item}
+                            onClick={() => toggleIntervention(item)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                              assessment.interventions.includes(item)
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><TrendingUp size={16} /> Evolução Percebida</h4>
+                      <div className="grid grid-cols-2 gap-3 h-full max-h-[120px]">
+                        {EVOLUTION.map(ev => (
+                          <button
+                            key={ev.id}
+                            onClick={() => setAssessment(prev => ({...prev, evolution: ev.id}))}
+                            className={`flex items-center justify-center gap-2 rounded-xl font-bold text-sm transition-all border ${
+                              assessment.evolution === ev.id
+                                ? `bg-${ev.color}-50 text-${ev.color}-700 border-${ev.color}-200 shadow-sm`
+                                : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'
+                            }`}
+                          >
+                            <ev.icon size={16} /> {ev.id}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Avaliação de Risco (Essencial) */}
+                  <div className="bg-rose-50/50 p-6 rounded-3xl border border-rose-100 shadow-sm">
+                    <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-4 flex items-center gap-2"><HeartPulse size={16} /> Avaliação de Risco</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {Object.entries(RISKS).map(([key, options]) => (
+                        <div key={key} className="bg-white p-4 rounded-2xl border border-rose-100">
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase mb-2">
+                            {key === 'suicide' ? 'Ideação Suicida' : key === 'selfHarm' ? 'Autoagressão' : 'Risco a Terceiros'}
+                          </span>
+                          <div className="flex gap-2">
+                            {options.map(opt => (
+                              <button
+                                key={opt}
+                                onClick={() => setAssessment(prev => ({...prev, risks: {...prev.risks, [key]: opt}}))}
+                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                  assessment.risks[key as keyof typeof assessment.risks] === opt
+                                    ? (opt === 'Não' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-rose-500 text-white border-rose-600')
+                                    : 'bg-gray-50 text-gray-500 border-gray-100'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 5. Textos Livres */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="flex flex-col">
+                      <label className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">
+                        <FileText size={16} /> Encaminhamentos / Tarefas
+                      </label>
+                      <textarea 
+                        className="w-full flex-1 min-h-[100px] p-4 bg-indigo-50/30 border border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-200 outline-none text-gray-700 text-sm leading-relaxed resize-none"
+                        placeholder="Tarefas de casa, encaminhamentos médicos..."
+                        value={assessment.homework}
+                        onChange={e => setAssessment(prev => ({...prev, homework: e.target.value}))}
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <label className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">
+                        <Stethoscope size={16} /> Resumo Clínico Curto (Prontuário)
+                      </label>
+                      <textarea 
+                        className="w-full flex-1 min-h-[100px] p-4 bg-emerald-50/30 border border-emerald-100 rounded-2xl focus:ring-2 focus:ring-emerald-200 outline-none text-gray-700 text-sm leading-relaxed resize-none"
+                        placeholder="Síntese técnica da sessão..."
+                        value={assessment.summary}
+                        onChange={e => setAssessment(prev => ({...prev, summary: e.target.value}))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                      <FileText size={16} /> Anotações Livres (Privado)
                     </label>
                     <textarea 
-                      className="w-full flex-1 p-4 bg-emerald-50/30 border border-emerald-100 rounded-2xl focus:ring-2 focus:ring-emerald-200 outline-none text-gray-700 text-sm leading-relaxed resize-none"
-                      placeholder="Registre a evolução clínica técnica para o prontuário..."
-                      value={medicalRecord}
-                      onChange={e => setMedicalRecord(e.target.value)}
+                      className="w-full min-h-[120px] p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-gray-200 outline-none text-gray-700 text-sm leading-relaxed resize-none"
+                      placeholder="Detalhes adicionais, insights pessoais do terapeuta..."
+                      value={assessment.notes}
+                      onChange={e => setAssessment(prev => ({...prev, notes: e.target.value}))}
                     />
                   </div>
                 </div>
@@ -278,7 +575,7 @@ const Consultations: React.FC = () => {
             </div>
 
             {/* Footer Modal */}
-            <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex justify-between items-center">
+            <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex justify-between items-center shrink-0">
               {step === 2 ? (
                 <button onClick={() => setStep(1)} className="px-6 py-3 font-bold text-gray-400 hover:text-gray-600 transition-colors">Voltar</button>
               ) : (

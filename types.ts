@@ -116,6 +116,7 @@ export interface Session {
   packageId?: string;
   modality?: 'Presencial' | 'Online';
   medicalRecord?: string;
+  structuredAssessment?: string; // JSON stringificado com os dados detalhados
 }
 
 export interface SessionPackage {

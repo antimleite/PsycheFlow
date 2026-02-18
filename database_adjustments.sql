@@ -42,6 +42,8 @@ ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS modality text;
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS medical_record text;
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS notes text;
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS duration integer;
+-- Nova coluna para armazenar o JSON da avaliação estruturada (checklist, humor, riscos, etc)
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS structured_assessment text;
 
 -- 6. OTIMIZAÇÃO (ÍNDICES)
 -- Adiciona índices para melhorar a performance das consultas frequentes
