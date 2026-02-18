@@ -261,7 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
         <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
               <CalendarIcon size={20} className="text-indigo-600" />
               Agenda Interativa
@@ -271,7 +271,24 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 <button key={v} onClick={() => setView(v as CalendarView)} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${view === v ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>{v}</button>
               ))}
             </div>
+            
+            {/* Legenda de Status */}
+            <div className="hidden lg:flex items-center gap-3 ml-2 pl-4 border-l border-gray-100">
+               <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Agendada</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Confirmada</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Realizada</span>
+               </div>
+            </div>
           </div>
+
           <div className="flex items-center gap-3">
             <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
             <span className="text-sm font-bold min-w-[160px] text-center capitalize text-gray-700">
