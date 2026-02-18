@@ -8,15 +8,15 @@ import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, AlertOctagon, BrainCircuit, HeartPulse 
 } from 'lucide-react';
 
-// Constantes para os novos campos
+// Constantes para os novos campos com cores suaves definidas
 const EMOTIONS = [
-  { id: 'Estável', icon: Smile, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  { id: 'Ansioso', icon: Activity, color: 'text-amber-500', bg: 'bg-amber-50' },
-  { id: 'Triste', icon: Frown, color: 'text-blue-500', bg: 'bg-blue-50' },
-  { id: 'Irritado', icon: AlertOctagon, color: 'text-rose-500', bg: 'bg-rose-50' },
-  { id: 'Apático', icon: Meh, color: 'text-gray-500', bg: 'bg-gray-50' },
-  { id: 'Melhorando', icon: TrendingUp, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-  { id: 'Em crise', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-100' },
+  { id: 'Estável', icon: Smile, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  { id: 'Ansioso', icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+  { id: 'Triste', icon: Frown, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  { id: 'Irritado', icon: AlertOctagon, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
+  { id: 'Apático', icon: Meh, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' },
+  { id: 'Melhorando', icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  { id: 'Em crise', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
 ];
 
 const CLINICAL_OBSERVATIONS = {
@@ -361,68 +361,39 @@ Intervenções: ${assessment.interventions.join(', ')}
                   </div>
                 </div>
               ) : (
-                <div className="space-y-8">
-                  {/* 1. Objetivo da Sessão & Observações Clínicas (Reordenado para ser o primeiro bloco) */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Objetivo da Sessão (Primeiro na grid) */}
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> Objetivo da Sessão</h4>
-                      <div className="space-y-4 flex-1">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Sessão</label>
-                          <select 
-                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={assessment.objective.type}
-                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, type: e.target.value}}))}
-                          >
-                            <option>Continuação da anterior</option>
-                            <option>Demanda Emergente</option>
-                            <option>Reavaliação</option>
-                            <option>Encerramento</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tema Principal</label>
-                          <input 
-                            type="text" 
-                            className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                            placeholder="Ex: Conflito familiar, Ansiedade social..."
-                            value={assessment.objective.theme}
-                            onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, theme: e.target.value}}))}
-                          />
-                        </div>
+                <div className="space-y-6">
+                  
+                  {/* 1. Objetivo da Sessão (Full Width - Topo) */}
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> Objetivo da Sessão</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Sessão</label>
+                        <select 
+                          className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                          value={assessment.objective.type}
+                          onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, type: e.target.value}}))}
+                        >
+                          <option>Continuação da anterior</option>
+                          <option>Demanda Emergente</option>
+                          <option>Reavaliação</option>
+                          <option>Encerramento</option>
+                        </select>
                       </div>
-                    </div>
-
-                    {/* Observações Clínicas (Segundo na grid) */}
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><BrainCircuit size={16} /> Observações Clínicas</h4>
-                      <div className="space-y-3">
-                        {Object.entries(CLINICAL_OBSERVATIONS).map(([key, options]) => (
-                          <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase w-24 capitalize">{key === 'affect' ? 'Afeto' : key === 'speech' ? 'Fala' : key === 'insight' ? 'Insight' : key === 'adherence' ? 'Adesão' : 'Aparência'}</span>
-                            <div className="flex flex-wrap gap-2 flex-1">
-                              {options.map(opt => (
-                                <button
-                                  key={opt}
-                                  onClick={() => setAssessment(prev => ({...prev, observations: {...prev.observations, [key]: opt}}))}
-                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-                                    assessment.observations[key as keyof typeof assessment.observations] === opt
-                                      ? 'bg-indigo-600 text-white border-indigo-600'
-                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tema Principal</label>
+                        <input 
+                          type="text" 
+                          className="w-full p-3 rounded-xl border border-gray-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                          placeholder="Ex: Conflito familiar, Ansiedade social..."
+                          value={assessment.objective.theme}
+                          onChange={(e) => setAssessment(prev => ({...prev, objective: {...prev.objective, theme: e.target.value}}))}
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* 2. Emoção Atual e Escalas */}
+                  {/* 2. Emoção Atual e Escalas (Full Width) */}
                   <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                         <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -437,19 +408,19 @@ Intervenções: ${assessment.interventions.join(', ')}
                         <button
                           key={emotion.id}
                           onClick={() => toggleEmotion(emotion.id)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+                          className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all hover:shadow-md ${
                             assessment.emotions.includes(emotion.id)
-                              ? `${emotion.bg} border-${emotion.color.split('-')[1]}-200 ring-2 ring-${emotion.color.split('-')[1]}-200`
-                              : 'bg-gray-50 border-transparent hover:bg-gray-100 text-gray-400'
+                              ? `${emotion.bg} ${emotion.border} ring-1 ring-offset-1 ${emotion.color.replace('text-', 'ring-').replace('600', '200')}`
+                              : 'bg-white border-gray-100 hover:border-gray-200 text-gray-400'
                           }`}
                         >
-                          <emotion.icon className={`mb-2 ${assessment.emotions.includes(emotion.id) ? emotion.color : 'text-gray-400'}`} size={24} />
-                          <span className={`text-[10px] font-bold uppercase ${assessment.emotions.includes(emotion.id) ? 'text-gray-800' : 'text-gray-400'}`}>{emotion.id}</span>
+                          <emotion.icon className={`mb-2 ${assessment.emotions.includes(emotion.id) ? emotion.color : 'text-gray-300'}`} size={28} />
+                          <span className={`text-[10px] font-black uppercase tracking-wide ${assessment.emotions.includes(emotion.id) ? 'text-gray-800' : 'text-gray-400'}`}>{emotion.id}</span>
                         </button>
                       ))}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-50">
                       {['Humor Geral', 'Ansiedade', 'Energia'].map((label, idx) => {
                         const key = label === 'Humor Geral' ? 'mood' : label === 'Ansiedade' ? 'anxiety' : 'energy';
                         const val = assessment.scales[key as keyof typeof assessment.scales];
@@ -471,8 +442,36 @@ Intervenções: ${assessment.interventions.join(', ')}
                     </div>
                   </div>
 
-                  {/* 3. Intervenções & Evolução */}
+                  {/* 3. Grid: Observações Clínicas & Intervenções Realizadas */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Observações Clínicas */}
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><BrainCircuit size={16} /> Observações Clínicas</h4>
+                      <div className="space-y-4">
+                        {Object.entries(CLINICAL_OBSERVATIONS).map(([key, options]) => (
+                          <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-3">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase w-24 pt-1.5 capitalize">{key === 'affect' ? 'Afeto' : key === 'speech' ? 'Fala' : key === 'insight' ? 'Insight' : key === 'adherence' ? 'Adesão' : 'Aparência'}</span>
+                            <div className="flex flex-wrap gap-2 flex-1">
+                              {options.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setAssessment(prev => ({...prev, observations: {...prev.observations, [key]: opt}}))}
+                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                    assessment.observations[key as keyof typeof assessment.observations] === opt
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Intervenções Realizadas */}
                     <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                       <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Stethoscope size={16} /> Intervenções Realizadas</h4>
                       <div className="flex flex-wrap gap-2">
@@ -480,9 +479,9 @@ Intervenções: ${assessment.interventions.join(', ')}
                           <button
                             key={item}
                             onClick={() => toggleIntervention(item)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                            className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${
                               assessment.interventions.includes(item)
-                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm'
                                 : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                             }`}
                           >
@@ -491,28 +490,29 @@ Intervenções: ${assessment.interventions.join(', ')}
                         ))}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><TrendingUp size={16} /> Evolução Percebida</h4>
-                      <div className="grid grid-cols-2 gap-3 h-full max-h-[120px]">
-                        {EVOLUTION.map(ev => (
-                          <button
-                            key={ev.id}
-                            onClick={() => setAssessment(prev => ({...prev, evolution: ev.id}))}
-                            className={`flex items-center justify-center gap-2 rounded-xl font-bold text-sm transition-all border ${
-                              assessment.evolution === ev.id
-                                ? `bg-${ev.color}-50 text-${ev.color}-700 border-${ev.color}-200 shadow-sm`
-                                : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'
-                            }`}
-                          >
-                            <ev.icon size={16} /> {ev.id}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 4. Evolução Percebida (Full Width) */}
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><TrendingUp size={16} /> Evolução Percebida</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {EVOLUTION.map(ev => (
+                        <button
+                          key={ev.id}
+                          onClick={() => setAssessment(prev => ({...prev, evolution: ev.id}))}
+                          className={`flex items-center justify-center gap-3 py-4 px-6 rounded-2xl font-bold text-sm transition-all border ${
+                            assessment.evolution === ev.id
+                              ? `bg-${ev.color}-50 text-${ev.color}-700 border-${ev.color}-200 shadow-md ring-1 ring-${ev.color}-200`
+                              : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <ev.icon size={20} /> {ev.id}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* 4. Avaliação de Risco (Essencial) */}
+                  {/* 5. Avaliação de Risco (Essencial) */}
                   <div className="bg-rose-50/50 p-6 rounded-3xl border border-rose-100 shadow-sm">
                     <h4 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-4 flex items-center gap-2"><HeartPulse size={16} /> Avaliação de Risco</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -541,7 +541,7 @@ Intervenções: ${assessment.interventions.join(', ')}
                     </div>
                   </div>
 
-                  {/* 5. Textos Livres */}
+                  {/* 6. Textos Livres */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="flex flex-col">
                       <label className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">
