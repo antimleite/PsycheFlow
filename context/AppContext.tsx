@@ -76,7 +76,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const { data, error } = await supabase.from('role_permissions').select('*');
       if (error) {
-        console.error("Erro ao buscar permissões:", error);
+        // Ignora erro PGRST205 (tabela não encontrada) para evitar spam no console antes da migração
+        if (error.code !== 'PGRST205') {
+          console.error("Erro ao buscar permissões:", error);
+        }
         return;
       }
       
@@ -240,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const consumedStatuses = [
       AttendanceStatus.COMPLETED, 
       AttendanceStatus.ABSENT_WITHOUT_NOTICE, 
-      AttendanceStatus.SCHEDULED,
+      AttendanceStatus.SCHEDULED, 
       AttendanceStatus.CONFIRMED
     ];
     
