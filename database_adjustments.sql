@@ -21,14 +21,14 @@ ON public.role_permissions FOR SELECT
 TO authenticated 
 USING (true);
 
--- Permite que usuários logados ATUALIZEM as configurações
+-- Permite que usuários logados (Admin via AppContext) ATUALIZEM as configurações
 CREATE POLICY "Permitir atualização para autenticados" 
 ON public.role_permissions FOR ALL 
 TO authenticated 
 USING (true)
 WITH CHECK (true);
 
--- 4. Insere os dados iniciais (Padrões)
+-- 4. Insere os dados iniciais (Padrões) para popular a tabela
 INSERT INTO public.role_permissions (role, modules) VALUES
 ('Administrador(a)', ARRAY['dashboard', 'patients', 'scheduling', 'consultations', 'payments', 'packages', 'reports', 'consultationHistory', 'financialReport', 'profissionais', 'users', 'menuSettings']),
 ('Psicólogo(a)', ARRAY['dashboard', 'patients', 'scheduling', 'consultations', 'packages', 'reports', 'consultationHistory']),
@@ -36,6 +36,16 @@ INSERT INTO public.role_permissions (role, modules) VALUES
 ('Teste', ARRAY['dashboard'])
 ON CONFLICT (role) DO NOTHING;
 
--- 5. Atualizações na tabela de sessões para suportar Atendimentos
+-- 5. MELHORIAS NA TABELA DE SESSÕES (SESSIONS)
+-- Garante que todas as colunas necessárias para o módulo de Atendimentos existam
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS modality text;
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS medical_record text;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS notes text;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS duration integer;
+
+-- 6. OTIMIZAÇÃO (ÍNDICES)
+-- Adiciona índices para melhorar a performance das consultas frequentes
+CREATE INDEX IF NOT EXISTS idx_sessions_patient_id ON public.sessions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_date ON public.sessions(date);
+CREATE INDEX IF NOT EXISTS idx_sessions_profissional_id ON public.sessions(profissional_id);
+CREATE INDEX IF NOT EXISTS idx_patients_profissional_id ON public.patients(profissional_id);

@@ -2,13 +2,14 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { AttendanceStatus, Session } from '../types';
-import { Calendar, Clock, Video, Users, CheckCircle, ArrowRight, X, Loader2, Save, FileText, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, Video, Users, CheckCircle, ArrowRight, X, Loader2, Save, FileText, Stethoscope, CheckCircle2 } from 'lucide-react';
 
 const Consultations: React.FC = () => {
   const { visibleSessions, visiblePatients, updateSession } = useApp();
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Form State
   const [duration, setDuration] = useState<number>(50);
@@ -27,9 +28,6 @@ const Consultations: React.FC = () => {
 
   const handleCardClick = (session: Session) => {
     if (session.status === AttendanceStatus.COMPLETED) {
-      // Se já foi realizada, carregar dados existentes para visualização/edição?
-      // Por simplificação do prompt, focaremos no fluxo de registrar novo atendimento, 
-      // mas preenchendo com dados existentes se houver.
       setDuration(session.duration || 50);
       setModality(session.modality || 'Presencial');
       setNotes(session.notes || '');
@@ -62,6 +60,7 @@ const Consultations: React.FC = () => {
       });
       setSelectedSession(null);
       setStep(1);
+      setShowSuccess(true);
     } catch (error) {
       console.error("Erro ao salvar atendimento:", error);
       alert("Erro ao finalizar atendimento.");
@@ -142,6 +141,27 @@ const Consultations: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Sucesso */}
+      {showSuccess && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] p-8 text-center shadow-2xl animate-in zoom-in-95 max-w-sm w-full">
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+              <CheckCircle2 size={48} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Sessão Registrada!</h3>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+              O atendimento foi finalizado e salvo no histórico do paciente com sucesso.
+            </p>
+            <button 
+              onClick={() => setShowSuccess(false)}
+              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Atendimento */}
       {selectedSession && (

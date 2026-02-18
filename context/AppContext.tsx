@@ -109,7 +109,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const { error } = await supabase
         .from('role_permissions')
-        .upsert({ role: role, modules: items, updated_at: new Date() }, { onConflict: 'role' });
+        .upsert({ 
+            role: role, 
+            modules: items, 
+            updated_at: new Date().toISOString() // Formatado para ISO
+        }, { onConflict: 'role' });
         
       if (error) throw error;
     } catch (e) {
