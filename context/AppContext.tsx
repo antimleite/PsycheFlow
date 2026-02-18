@@ -17,9 +17,11 @@ interface AppContextType {
   visiblePackages: SessionPackage[];
   profissionais: Profissional[];
   users: User[];
+  menuConfig: Record<string, string[]>;
   setActiveTab: (tab: string) => void;
   setActiveProfissional: (profissional: Profissional | null) => void;
   setPreSelectedPatientId: (id: string | null) => void;
+  updateMenuPermissions: (role: string, items: string[]) => void;
   login: (email: string, password?: string) => Promise<{ success: boolean, message?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean, message?: string }>;
   logout: () => Promise<void>;
@@ -44,6 +46,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Configuração padrão dos menus caso não exista no localStorage
+const DEFAULT_MENU_CONFIG: Record<string, string[]> = {
+  [UserRole.ADMIN]: ['dashboard', 'patients', 'scheduling', 'payments', 'packages', 'reports', 'financialReport', 'profissionais', 'users', 'menuSettings'],
+  [UserRole.PSICOLOGO]: ['dashboard', 'patients', 'scheduling', 'packages', 'reports'],
+  [UserRole.SECRETARIO]: ['dashboard', 'patients', 'scheduling', 'payments'],
+  [UserRole.TESTE]: ['dashboard']
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -57,6 +67,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [preSelectedPatientId, setPreSelectedPatientId] = useState<string | null>(null);
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Inicializa o menuConfig do localStorage ou usa o padrão
+  const [menuConfig, setMenuConfig] = useState<Record<string, string[]>>(() => {
+    try {
+      const stored = localStorage.getItem('psycheflow_menu_config_v1');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar configurações de menu:", e);
+    }
+    return DEFAULT_MENU_CONFIG;
+  });
+
+  const updateMenuPermissions = (role: string, items: string[]) => {
+    setMenuConfig(prev => {
+      const newConfig = { ...prev, [role]: items };
+      localStorage.setItem('psycheflow_menu_config_v1', JSON.stringify(newConfig));
+      return newConfig;
+    });
+  };
 
   const fetchAllData = async (user: User) => {
     try {
@@ -428,6 +459,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       preSelectedPatientId, setPreSelectedPatientId, isAuthenticated, loading, login, register, logout, 
       addPatient, updatePatient, deletePatient, addSession, updateSession, rescheduleSession, addPayment, 
       updatePayment, addPackage, updatePackage, addUser, updateUser, deleteUser, addProfissional, updateProfissional, deleteProfissional, getAvailableCredits, 
+      menuConfig, updateMenuPermissions,
       allPatients: patients, visiblePatients, visibleSessions, visiblePayments, visiblePackages, profissionais, users
     }}>
       {children}

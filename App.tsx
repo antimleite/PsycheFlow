@@ -10,6 +10,7 @@ import FinancialReport from './components/FinancialReport';
 import Packages from './components/Packages';
 import Users from './components/Users';
 import Profissionais from './components/Profissionais';
+import MenuConfig from './components/MenuConfig';
 import ProfissionalSelector from './components/ProfissionalSelector';
 import { AppProvider, useApp } from './context/AppContext';
 import { 
@@ -287,6 +288,7 @@ const AppContent: React.FC = () => {
       case 'financialReport': return <FinancialReport />;
       case 'users': return <Users />;
       case 'profissionais': return <Profissionais />;
+      case 'menuSettings': return <MenuConfig />;
       default: return <Dashboard setActiveTab={setActiveTab} />;
     }
   };

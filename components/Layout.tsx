@@ -11,7 +11,9 @@ import {
   ShieldCheck,
   Replace,
   Stethoscope,
-  CircleDollarSign
+  CircleDollarSign,
+  Settings,
+  Menu
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
@@ -35,9 +37,8 @@ const LogoSymbolSmall = () => (
 );
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
-  const { currentUser, logout, activeProfissional, setActiveProfissional } = useApp();
+  const { currentUser, logout, activeProfissional, setActiveProfissional, menuConfig } = useApp();
 
-  // Verificação robusta para garantir que administradores sempre vejam os menus de gestão
   const isAdmin = React.useMemo(() => {
     if (!currentUser?.role) return false;
     const role = String(currentUser.role).toUpperCase();
@@ -47,7 +48,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
            role === UserRole.ADMIN.toUpperCase();
   }, [currentUser]);
 
-  const menuItems = [
+  // Definição de todos os itens possíveis
+  const allNavItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'patients', label: 'Pacientes', icon: Users },
     { id: 'scheduling', label: 'Agendamentos', icon: Calendar },
@@ -55,12 +57,39 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'packages', label: 'Pacotes', icon: Package },
     { id: 'reports', label: 'Rel. de atendimentos', icon: BarChart3 },
     { id: 'financialReport', label: 'Rel. Financeiro', icon: CircleDollarSign },
+    { id: 'profissionais', label: 'Profissionais', icon: Stethoscope },
+    { id: 'users', label: 'Usuários', icon: ShieldCheck },
   ];
 
-  if (isAdmin) {
-    menuItems.push({ id: 'profissionais', label: 'Profissionais', icon: Stethoscope });
-    menuItems.push({ id: 'users', label: 'Usuários', icon: ShieldCheck });
-  }
+  // Filtra itens baseados na configuração do usuário atual
+  const filteredMenuItems = React.useMemo(() => {
+    if (!currentUser) return [];
+    const role = currentUser.role as string;
+    
+    // Para administradores, mostramos todos os itens disponíveis ignorando a configuração
+    const allowedItems = isAdmin 
+      ? allNavItems.map(i => i.id) 
+      : (menuConfig[role] || []);
+    
+    // Filtra os itens permitidos
+    const items = allNavItems.filter(item => allowedItems.includes(item.id));
+    
+    // Adiciona o menu de configurações exclusivamente para Admin, logo após Usuários
+    if (isAdmin) {
+       // Se o item users estiver presente, insere depois dele, senão no final
+       const usersIndex = items.findIndex(i => i.id === 'users');
+       const settingsItem = { id: 'menuSettings', label: 'Configurações', icon: Settings };
+       
+       if (usersIndex !== -1) {
+         items.splice(usersIndex + 1, 0, settingsItem);
+       } else {
+         items.push(settingsItem);
+       }
+    }
+    
+    return items;
+  }, [menuConfig, currentUser, isAdmin]);
+
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden font-inter">
@@ -75,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </div>
         
         <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto pb-6 custom-scrollbar">
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
