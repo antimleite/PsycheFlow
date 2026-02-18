@@ -2,15 +2,17 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { ShieldCheck, GraduationCap, Users, Microscope, LayoutDashboard, Calendar, CreditCard, Package, BarChart3, CircleDollarSign, Stethoscope, Shield, Check, X, ToggleLeft, ToggleRight, Info, Lock } from 'lucide-react';
+import { ShieldCheck, GraduationCap, Users, Microscope, LayoutDashboard, Calendar, CreditCard, Package, BarChart3, CircleDollarSign, Stethoscope, Shield, ClipboardPen, History, Lock, ToggleLeft, ToggleRight, Info } from 'lucide-react';
 
 const MODULES = [
   { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
   { id: 'patients', label: 'Pacientes', icon: Users },
   { id: 'scheduling', label: 'Agendamentos', icon: Calendar },
+  { id: 'consultations', label: 'Atendimentos', icon: ClipboardPen },
   { id: 'payments', label: 'Pagamentos', icon: CreditCard },
   { id: 'packages', label: 'Pacotes', icon: Package },
   { id: 'reports', label: 'Rel. de atendimentos', icon: BarChart3 },
+  { id: 'consultationHistory', label: 'Hist. de atendimentos', icon: History },
   { id: 'financialReport', label: 'Rel. Financeiro', icon: CircleDollarSign },
   { id: 'profissionais', label: 'Profissionais', icon: Stethoscope },
   { id: 'users', label: 'Usuários', icon: Shield },

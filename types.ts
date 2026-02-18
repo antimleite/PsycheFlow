@@ -114,6 +114,8 @@ export interface Session {
   notes: string;
   serviceType?: ServiceType;
   packageId?: string;
+  modality?: 'Presencial' | 'Online';
+  medicalRecord?: string;
 }
 
 export interface SessionPackage {

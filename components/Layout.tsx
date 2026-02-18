@@ -13,7 +13,9 @@ import {
   Stethoscope,
   CircleDollarSign,
   Settings,
-  Menu
+  Menu,
+  ClipboardPen,
+  History
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
@@ -53,9 +55,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'patients', label: 'Pacientes', icon: Users },
     { id: 'scheduling', label: 'Agendamentos', icon: Calendar },
+    { id: 'consultations', label: 'Atendimentos', icon: ClipboardPen },
     { id: 'payments', label: 'Pagamentos', icon: CreditCard },
     { id: 'packages', label: 'Pacotes', icon: Package },
     { id: 'reports', label: 'Rel. de atendimentos', icon: BarChart3 },
+    { id: 'consultationHistory', label: 'Hist. de atendimentos', icon: History },
     { id: 'financialReport', label: 'Rel. Financeiro', icon: CircleDollarSign },
     { id: 'profissionais', label: 'Profissionais', icon: Stethoscope },
     { id: 'users', label: 'Usuários', icon: ShieldCheck },

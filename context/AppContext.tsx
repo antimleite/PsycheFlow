@@ -46,10 +46,10 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Configuração padrão de fallback
+// Configuração padrão de fallback com novos módulos
 const DEFAULT_MENU_CONFIG: Record<string, string[]> = {
-  [UserRole.ADMIN]: ['dashboard', 'patients', 'scheduling', 'payments', 'packages', 'reports', 'financialReport', 'profissionais', 'users', 'menuSettings'],
-  [UserRole.PSICOLOGO]: ['dashboard', 'patients', 'scheduling', 'packages', 'reports'],
+  [UserRole.ADMIN]: ['dashboard', 'patients', 'scheduling', 'consultations', 'payments', 'packages', 'reports', 'consultationHistory', 'financialReport', 'profissionais', 'users', 'menuSettings'],
+  [UserRole.PSICOLOGO]: ['dashboard', 'patients', 'scheduling', 'consultations', 'packages', 'reports', 'consultationHistory'],
   [UserRole.SECRETARIO]: ['dashboard', 'patients', 'scheduling', 'payments'],
   [UserRole.TESTE]: ['dashboard']
 };

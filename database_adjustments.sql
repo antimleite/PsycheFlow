@@ -30,8 +30,12 @@ WITH CHECK (true);
 
 -- 4. Insere os dados iniciais (Padrões)
 INSERT INTO public.role_permissions (role, modules) VALUES
-('Administrador(a)', ARRAY['dashboard', 'patients', 'scheduling', 'payments', 'packages', 'reports', 'financialReport', 'profissionais', 'users', 'menuSettings']),
-('Psicólogo(a)', ARRAY['dashboard', 'patients', 'scheduling', 'packages', 'reports']),
+('Administrador(a)', ARRAY['dashboard', 'patients', 'scheduling', 'consultations', 'payments', 'packages', 'reports', 'consultationHistory', 'financialReport', 'profissionais', 'users', 'menuSettings']),
+('Psicólogo(a)', ARRAY['dashboard', 'patients', 'scheduling', 'consultations', 'packages', 'reports', 'consultationHistory']),
 ('Secretário(a)', ARRAY['dashboard', 'patients', 'scheduling', 'payments']),
 ('Teste', ARRAY['dashboard'])
 ON CONFLICT (role) DO NOTHING;
+
+-- 5. Atualizações na tabela de sessões para suportar Atendimentos
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS modality text;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS medical_record text;

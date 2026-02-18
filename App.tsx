@@ -12,6 +12,8 @@ import Users from './components/Users';
 import Profissionais from './components/Profissionais';
 import MenuConfig from './components/MenuConfig';
 import ProfissionalSelector from './components/ProfissionalSelector';
+import Consultations from './components/Consultations';
+import ConsultationHistory from './components/ConsultationHistory';
 import { AppProvider, useApp } from './context/AppContext';
 import { 
   ShieldCheck, 
@@ -282,9 +284,11 @@ const AppContent: React.FC = () => {
       case 'dashboard': return <Dashboard setActiveTab={setActiveTab} />;
       case 'patients': return <PatientRegistration />;
       case 'scheduling': return <Scheduling />;
+      case 'consultations': return <Consultations />;
       case 'payments': return <Payments />;
       case 'packages': return <Packages />;
       case 'reports': return <Reports />;
+      case 'consultationHistory': return <ConsultationHistory />;
       case 'financialReport': return <FinancialReport />;
       case 'users': return <Users />;
       case 'profissionais': return <Profissionais />;
