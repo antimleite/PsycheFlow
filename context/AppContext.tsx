@@ -46,7 +46,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Configuração padrão dos menus caso não exista no localStorage
+// Configuração padrão de fallback
 const DEFAULT_MENU_CONFIG: Record<string, string[]> = {
   [UserRole.ADMIN]: ['dashboard', 'patients', 'scheduling', 'payments', 'packages', 'reports', 'financialReport', 'profissionais', 'users', 'menuSettings'],
   [UserRole.PSICOLOGO]: ['dashboard', 'patients', 'scheduling', 'packages', 'reports'],
@@ -68,25 +68,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Inicializa o menuConfig do localStorage ou usa o padrão
-  const [menuConfig, setMenuConfig] = useState<Record<string, string[]>>(() => {
+  // Inicializa o menuConfig com padrão
+  const [menuConfig, setMenuConfig] = useState<Record<string, string[]>>(DEFAULT_MENU_CONFIG);
+
+  // Carrega permissões do banco ao iniciar
+  const fetchMenuPermissions = useCallback(async () => {
     try {
-      const stored = localStorage.getItem('psycheflow_menu_config_v1');
-      if (stored) {
-        return JSON.parse(stored);
+      const { data, error } = await supabase.from('role_permissions').select('*');
+      if (error) {
+        console.error("Erro ao buscar permissões:", error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const dbConfig: Record<string, string[]> = {};
+        data.forEach((row: any) => {
+          dbConfig[row.role] = row.modules;
+        });
+        // Mescla com o padrão para garantir que todos os roles existam
+        setMenuConfig(prev => ({ ...prev, ...dbConfig }));
       }
     } catch (e) {
-      console.error("Erro ao carregar configurações de menu:", e);
+      console.error("Erro no fetch de permissões:", e);
     }
-    return DEFAULT_MENU_CONFIG;
-  });
+  }, []);
 
-  const updateMenuPermissions = (role: string, items: string[]) => {
-    setMenuConfig(prev => {
-      const newConfig = { ...prev, [role]: items };
-      localStorage.setItem('psycheflow_menu_config_v1', JSON.stringify(newConfig));
-      return newConfig;
-    });
+  // Chama o fetch inicial
+  useEffect(() => {
+    fetchMenuPermissions();
+  }, [fetchMenuPermissions]);
+
+  const updateMenuPermissions = async (role: string, items: string[]) => {
+    // Atualiza estado local imediatamente (otimista)
+    setMenuConfig(prev => ({ ...prev, [role]: items }));
+    
+    // Salva no banco
+    try {
+      const { error } = await supabase
+        .from('role_permissions')
+        .upsert({ role: role, modules: items, updated_at: new Date() }, { onConflict: 'role' });
+        
+      if (error) throw error;
+    } catch (e) {
+      console.error("Erro ao salvar permissões no banco:", e);
+      // Opcional: Reverter estado em caso de erro, ou apenas notificar
+    }
   };
 
   const fetchAllData = async (user: User) => {
@@ -117,6 +143,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (data) setUsers(data.map(u => mapToCamelCase(u) as User));
         })()
       ]);
+      
+      // Recarrega permissões sempre que login ocorrer para garantir frescor
+      await fetchMenuPermissions();
+      
     } catch (e) { 
       console.error("Erro ao carregar dados:", e); 
     }

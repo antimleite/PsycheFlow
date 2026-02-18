@@ -44,7 +44,7 @@ const MenuConfig: React.FC = () => {
     updateMenuPermissions(role, newPermissions);
   };
 
-  // Garante que o usuário atual tenha acesso ao admin com verificação robusta
+  // Garante que o usuário atual tenha acesso ao admin com verificação robusta de string
   const isAdmin = useMemo(() => {
     if (!currentUser?.role) return false;
     const role = String(currentUser.role).toUpperCase();
