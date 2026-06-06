@@ -46,12 +46,13 @@ const LogoSymbol = () => (
 );
 
 const AppContent: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthenticated, login, register, activeProfissional, loading } = useApp();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const { activeTab, setActiveTab, isAuthenticated, login, register, resetPassword, activeProfissional, loading } = useApp();
+  const [mode, setMode] = useState<'login' | 'register' | 'recover'>('login');
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +71,14 @@ const AppContent: React.FC = () => {
         result = await register(formData.name, formData.email, formData.password);
         if (result.success) {
           setRegistrationSuccess(true);
+        }
+      } else if (mode === 'recover') {
+        if (!formData.email) {
+          throw new Error('Por favor, insira seu e-mail de trabalho para recuperar a senha.');
+        }
+        result = await resetPassword(formData.email);
+        if (result.success) {
+          setRecoverySuccess(true);
         }
       } else {
         result = await login(formData.email, formData.password);
@@ -130,16 +139,34 @@ const AppContent: React.FC = () => {
             <div className="max-w-sm w-full mx-auto space-y-10">
               <div className="text-center md:text-left space-y-2">
                 <h2 className="text-4xl font-black text-gray-900 tracking-tight">
-                  {mode === 'login' ? 'Boas-vindas' : 'Crie seu acesso'}
+                  {mode === 'login' ? 'Boas-vindas' : mode === 'recover' ? 'Recuperar Acesso' : 'Crie seu acesso'}
                 </h2>
                 <p className="text-gray-400 font-medium">
                   {mode === 'login' 
                     ? 'Acesse sua conta para gerenciar seu fluxo.' 
-                    : 'Comece sua jornada de gestão inteligente hoje.'}
+                    : mode === 'recover' ? 'Insira seu e-mail para receber um link de redefinição.' : 'Comece sua jornada de gestão inteligente hoje.'}
                 </p>
               </div>
 
-              {registrationSuccess ? (
+              {recoverySuccess ? (
+                <div className="bg-indigo-50 p-8 rounded-[32px] border border-indigo-100 text-center space-y-6 animate-in zoom-in-95 duration-500">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                    <CheckCircle2 size={32} className="text-indigo-500" />
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-bold text-gray-900">E-mail Enviado!</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Se o e-mail existir em nossa base, você receberá um link para redefinir sua senha em instantes. Verifique sua caixa de entrada.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setMode('login'); setRecoverySuccess(false); }}
+                    className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                  >
+                    Voltar para o Login
+                  </button>
+                </div>
+              ) : registrationSuccess ? (
                 <div className="bg-emerald-50 p-8 rounded-[32px] border border-emerald-100 text-center space-y-6 animate-in zoom-in-95 duration-500">
                   <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm">
                     <CheckCircle2 size={32} className="text-emerald-500" />
@@ -162,7 +189,7 @@ const AppContent: React.FC = () => {
                   <div className="bg-gray-50 p-1.5 rounded-2xl flex border border-gray-100">
                     <button 
                       onClick={() => { setMode('login'); setAuthError(null); }}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'login' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'login' || mode === 'recover' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       <LogIn size={16} /> Entrar
                     </button>
@@ -211,27 +238,29 @@ const AppContent: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center ml-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Senha de Acesso</label>
-                        {mode === 'login' && (
-                          <button type="button" className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700 transition-colors">Recuperar</button>
-                        )}
-                      </div>
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-focus-within:bg-indigo-100 group-focus-within:text-indigo-600 transition-all">
-                          <Lock size={18} />
+                    {mode !== 'recover' && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center ml-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Senha de Acesso</label>
+                          {mode === 'login' && (
+                            <button type="button" onClick={() => { setMode('recover'); setAuthError(null); }} className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700 transition-colors">Recuperar</button>
+                          )}
                         </div>
-                        <input 
-                          type="password" 
-                          required 
-                          placeholder="••••••••" 
-                          className="w-full pl-16 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 outline-none transition-all font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium tracking-widest" 
-                          value={formData.password} 
-                          onChange={e => setFormData({...formData, password: e.target.value})} 
-                        />
+                        <div className="relative group">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-focus-within:bg-indigo-100 group-focus-within:text-indigo-600 transition-all">
+                            <Lock size={18} />
+                          </div>
+                          <input 
+                            type="password" 
+                            required 
+                            placeholder="••••••••" 
+                            className="w-full pl-16 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 outline-none transition-all font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium tracking-widest" 
+                            value={formData.password} 
+                            onChange={e => setFormData({...formData, password: e.target.value})} 
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {authError && (
                       <div className="flex items-center gap-3 text-rose-600 text-[11px] font-bold animate-in fade-in slide-in-from-top-1 bg-rose-50 p-4 rounded-2xl border border-rose-100">
@@ -249,7 +278,7 @@ const AppContent: React.FC = () => {
                         <Loader2 size={18} className="animate-spin" />
                       ) : (
                         <>
-                          {mode === 'login' ? 'Acessar Sistema' : 'Criar minha conta'}
+                          {mode === 'login' ? 'Acessar Sistema' : mode === 'recover' ? 'Recuperar Senha' : 'Criar minha conta'}
                           <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         </>
                       )}

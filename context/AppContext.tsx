@@ -24,6 +24,7 @@ interface AppContextType {
   updateMenuPermissions: (role: string, items: string[]) => void;
   login: (email: string, password?: string) => Promise<{ success: boolean, message?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean, message?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean, message?: string }>;
   logout: () => Promise<void>;
   addPatient: (patient: Omit<Patient, 'id' | 'profissionalId'>) => Promise<void>;
   updatePatient: (patient: Patient) => Promise<void>;
@@ -326,6 +327,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true };
   };
 
+  const resetPassword = async (email: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) {
+        setLoading(false);
+        return { success: false, message: error.message };
+      }
+      setLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setLoading(false);
+      return { success: false, message: err.message || 'Erro inesperado ao solicitar recuperação.' };
+    }
+  };
+
   const logout = useCallback(async () => {
     setLoading(true);
     try {
@@ -493,7 +512,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
       currentUser, activeTab, setActiveTab, activeProfissional, setActiveProfissional, 
-      preSelectedPatientId, setPreSelectedPatientId, isAuthenticated, loading, login, register, logout, 
+      preSelectedPatientId, setPreSelectedPatientId, isAuthenticated, loading, login, register, resetPassword, logout, 
       addPatient, updatePatient, deletePatient, addSession, updateSession, rescheduleSession, addPayment, 
       updatePayment, addPackage, updatePackage, addUser, updateUser, deleteUser, addProfissional, updateProfissional, deleteProfissional, getAvailableCredits, 
       menuConfig, updateMenuPermissions,
